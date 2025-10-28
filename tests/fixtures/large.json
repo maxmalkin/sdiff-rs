@@ -1,0 +1,20 @@
+{
+  "users": [
+    {"id": 1, "name": "User1", "email": "user1@example.com", "age": 25},
+    {"id": 2, "name": "User2", "email": "user2@example.com", "age": 30},
+    {"id": 3, "name": "User3", "email": "user3@example.com", "age": 35}
+  ],
+  "settings": {
+    "theme": "dark",
+    "notifications": true,
+    "privacy": {
+      "public_profile": false,
+      "show_email": false
+    }
+  },
+  "metadata": {
+    "created": "2024-01-01",
+    "updated": "2024-01-15",
+    "version": "1.0.0"
+  }
+}

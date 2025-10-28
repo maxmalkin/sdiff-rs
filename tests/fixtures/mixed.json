@@ -1,0 +1,6 @@
+{
+  "name": "Dave",
+  "age": 50,
+  "active": true,
+  "tags": ["tag1", "tag2"]
+}
