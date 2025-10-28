@@ -397,9 +397,6 @@ Please follow conventional commit message format:
 - `refactor:` for code refactoring
 - `chore:` for maintenance tasks-->
 
-## License
-
-This project is licensed under the MIT License.
 
 ## To-do
 
@@ -410,3 +407,7 @@ This project is licensed under the MIT License.
 - [ ] Support for more formats (TOML, XML)
 - [ ] Streaming mode for very large files
 - [ ] Interactive mode for conflict resolution
+
+## License
+
+This project is licensed under the MIT License.
