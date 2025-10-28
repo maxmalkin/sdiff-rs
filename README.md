@@ -1,5 +1,6 @@
 # SDIFF - Semantic Diff Tool for Structured Data
 
+[![CI](https://github.com/maxmalkin/sdiff/workflows/CI/badge.svg)](https://github.com/maxmalkin/sdiff/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **SDIFF** is a high-performance semantic diff tool that compares structured data files (JSON, YAML) and shows only meaningful changes, ignoring formatting, whitespace, and key ordering differences.

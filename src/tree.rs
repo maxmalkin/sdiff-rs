@@ -493,6 +493,6 @@ mod tests {
 
         // Floats should show decimal
         assert_eq!(Node::Number(42.5).preview(100), "42.5");
-        assert_eq!(Node::Number(3.14159).preview(100), "3.14159");
+        assert_eq!(Node::Number(3.25).preview(100), "3.25");
     }
 }

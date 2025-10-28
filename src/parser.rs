@@ -246,7 +246,7 @@ mod tests {
         assert_eq!(parse_json("true").unwrap(), Node::Bool(true));
         assert_eq!(parse_json("false").unwrap(), Node::Bool(false));
         assert_eq!(parse_json("42").unwrap(), Node::Number(42.0));
-        assert_eq!(parse_json("3.14").unwrap(), Node::Number(3.14));
+        assert_eq!(parse_json("3.15").unwrap(), Node::Number(3.15));
         assert_eq!(
             parse_json(r#""hello""#).unwrap(),
             Node::String("hello".to_string())
@@ -318,7 +318,7 @@ mod tests {
         // Note: serde_yaml 0.9 follows YAML 1.2 where only "true"/"false" are booleans
         // "yes"/"no" are treated as strings in YAML 1.2
         assert_eq!(parse_yaml("42").unwrap(), Node::Number(42.0));
-        assert_eq!(parse_yaml("3.14").unwrap(), Node::Number(3.14));
+        assert_eq!(parse_yaml("3.15").unwrap(), Node::Number(3.15));
         assert_eq!(
             parse_yaml("hello").unwrap(),
             Node::String("hello".to_string())

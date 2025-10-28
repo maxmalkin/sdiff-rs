@@ -656,8 +656,10 @@ mod tests {
 
     #[test]
     fn test_diff_ignore_whitespace() {
-        let mut config = DiffConfig::default();
-        config.ignore_whitespace = true;
+        let config = DiffConfig {
+            ignore_whitespace: true,
+            ..Default::default()
+        };
 
         let old = Node::String("hello   world".to_string());
         let new = Node::String("hello world".to_string());
