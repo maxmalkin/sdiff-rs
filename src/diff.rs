@@ -45,7 +45,7 @@ pub enum ChangeType {
 /// Each change represents a difference at a specific path in the tree structure.
 /// The path is represented as a vector of strings, where each string is either:
 /// - An object key (e.g., "user", "profile", "age")
-/// - An array index (e.g., "[0]", "[1]")
+/// - An array index (e.g., "\[0\]", "\[1\]")
 #[derive(Debug, Clone)]
 pub struct Change {
     /// Path to the changed value (e.g., ["user", "profile", "age"])
