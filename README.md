@@ -397,17 +397,6 @@ Please follow conventional commit message format:
 - `refactor:` for code refactoring
 - `chore:` for maintenance tasks-->
 
-
-## To-do
-
-- [ ] LCS-based array diffing for better array change detection
-- [ ] Context lines around changes
-- [ ] Configurable color schemes
-- [ ] Diff merging capabilities
-- [ ] Support for more formats (TOML, XML)
-- [ ] Streaming mode for very large files
-- [ ] Interactive mode for conflict resolution
-
 ## License
 
 This project is licensed under the MIT License.
