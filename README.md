@@ -1,6 +1,8 @@
 # SDIFF
 
+[![CI](https://github.com/maxmalkin/sdiff/actions/workflows/ci.yml/badge.svg)](https://github.com/maxmalkin/sdiff/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![MSRV](https://img.shields.io/badge/MSRV-1.93.0-blue.svg)](https://blog.rust-lang.org/)
 
 Semantic diff tool for JSON and YAML. Compares structured data and shows only meaningful changes, ignoring formatting, whitespace, and key ordering.
 
