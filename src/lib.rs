@@ -35,5 +35,5 @@ pub mod tree;
 pub use diff::{compute_diff, ArrayDiffStrategy, Change, ChangeType, Diff, DiffConfig};
 pub use error::{OutputError, ParseError, SdiffError};
 pub use output::{format_diff, OutputFormat, OutputOptions};
-pub use parser::{parse_file, parse_json, parse_yaml};
+pub use parser::{parse_file, parse_json, parse_toml, parse_yaml};
 pub use tree::Node;
