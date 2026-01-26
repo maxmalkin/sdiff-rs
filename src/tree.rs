@@ -134,36 +134,26 @@ impl Node {
     /// ```
     pub fn semantic_equals(&self, other: &Node) -> bool {
         match (self, other) {
-            // Primitives: direct comparison
             (Node::Null, Node::Null) => true,
             (Node::Bool(a), Node::Bool(b)) => a == b,
             (Node::String(a), Node::String(b)) => a == b,
-
-            // Numbers: use epsilon comparison for floating-point tolerance
             (Node::Number(a), Node::Number(b)) => {
                 const EPSILON: f64 = 1e-10;
                 (a - b).abs() < EPSILON
             }
-
-            // Objects: compare all key-value pairs, ignoring order
             (Node::Object(a), Node::Object(b)) => {
                 if a.len() != b.len() {
                     return false;
                 }
-                // Check that all keys in 'a' exist in 'b' with equal values
                 a.iter()
                     .all(|(key, value)| b.get(key).is_some_and(|v| value.semantic_equals(v)))
             }
-
-            // Arrays: must match in order and length
             (Node::Array(a), Node::Array(b)) => {
                 a.len() == b.len()
                     && a.iter()
                         .zip(b.iter())
                         .all(|(item_a, item_b)| item_a.semantic_equals(item_b))
             }
-
-            // Different types are never equal
             _ => false,
         }
     }
@@ -197,7 +187,6 @@ impl Node {
             Node::Null => "null".to_string(),
             Node::Bool(b) => b.to_string(),
             Node::Number(n) => {
-                // Format number intelligently: show integers without decimal point
                 if n.fract() == 0.0 && n.is_finite() {
                     format!("{}", *n as i64)
                 } else {
@@ -227,7 +216,6 @@ impl Node {
             }
         };
 
-        // Truncate if necessary
         if preview.len() > max_len {
             format!("{}...", &preview[..max_len.saturating_sub(3)])
         } else {

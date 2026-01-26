@@ -116,7 +116,6 @@ pub fn format_diff(
 fn format_terminal(diff: &Diff, options: &OutputOptions) -> String {
     let mut output = String::new();
 
-    // Filter changes based on compact option
     let changes: Vec<&Change> = diff
         .changes
         .iter()
@@ -127,14 +126,12 @@ fn format_terminal(diff: &Diff, options: &OutputOptions) -> String {
         return "No changes detected.".dimmed().to_string();
     }
 
-    // Format each change
     for change in changes {
         let line = format_change_terminal(change, options);
         output.push_str(&line);
         output.push('\n');
     }
 
-    // Add summary statistics
     output.push('\n');
     output.push_str(&format_summary(&diff.stats));
 
@@ -231,7 +228,6 @@ fn format_json(diff: &Diff) -> Result<String, OutputError> {
 fn format_plain(diff: &Diff, options: &OutputOptions) -> String {
     let mut output = String::new();
 
-    // Filter changes based on compact option
     let changes: Vec<&Change> = diff
         .changes
         .iter()
@@ -242,14 +238,12 @@ fn format_plain(diff: &Diff, options: &OutputOptions) -> String {
         return "No changes detected.".to_string();
     }
 
-    // Format each change
     for change in changes {
         let line = format_change_plain(change, options);
         output.push_str(&line);
         output.push('\n');
     }
 
-    // Add summary statistics
     output.push('\n');
     output.push_str(&format_summary(&diff.stats));
 

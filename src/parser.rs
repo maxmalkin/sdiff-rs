@@ -62,18 +62,15 @@ use std::path::Path;
 /// # }
 /// ```
 pub fn parse_file(path: &Path) -> Result<Node, ParseError> {
-    // Check if file exists
     if !path.exists() {
         return Err(ParseError::file_not_found(
             path.to_string_lossy().to_string(),
         ));
     }
 
-    // Read file contents
     let content = fs::read_to_string(path)
         .map_err(|e| ParseError::read_error(path.to_string_lossy().to_string(), e))?;
 
-    // Detect format by extension
     let extension = path
         .extension()
         .and_then(|ext| ext.to_str())
@@ -85,7 +82,6 @@ pub fn parse_file(path: &Path) -> Result<Node, ParseError> {
         Some("yaml") | Some("yml") => parse_yaml(&content)
             .map_err(|e| ParseError::yaml_error(path.to_string_lossy().to_string(), e)),
         _ => {
-            // Try JSON first, then YAML
             parse_json(&content)
                 .map_err(|_| ())
                 .or_else(|_| parse_yaml(&content).map_err(|_| ()))
@@ -157,11 +153,9 @@ fn json_to_node(value: serde_json::Value) -> Node {
         serde_json::Value::Null => Node::Null,
         serde_json::Value::Bool(b) => Node::Bool(b),
         serde_json::Value::Number(n) => {
-            // Convert to f64, preserving as much precision as possible
             if let Some(f) = n.as_f64() {
                 Node::Number(f)
             } else {
-                // Shouldn't happen, but handle gracefully
                 Node::Number(0.0)
             }
         }
@@ -195,7 +189,6 @@ fn yaml_to_node(value: serde_yaml::Value) -> Node {
         serde_yaml::Value::Null => Node::Null,
         serde_yaml::Value::Bool(b) => Node::Bool(b),
         serde_yaml::Value::Number(n) => {
-            // Convert to f64
             if let Some(f) = n.as_f64() {
                 Node::Number(f)
             } else if let Some(i) = n.as_i64() {
@@ -214,7 +207,6 @@ fn yaml_to_node(value: serde_yaml::Value) -> Node {
             let hash_map: HashMap<String, Node> = map
                 .into_iter()
                 .map(|(k, v)| {
-                    // Convert key to string
                     let key_str = match k {
                         serde_yaml::Value::String(s) => s,
                         serde_yaml::Value::Number(n) => n.to_string(),
@@ -227,10 +219,7 @@ fn yaml_to_node(value: serde_yaml::Value) -> Node {
                 .collect();
             Node::Object(hash_map)
         }
-        serde_yaml::Value::Tagged(tagged) => {
-            // Evaluate the tagged value (ignore the tag, use the value)
-            yaml_to_node(tagged.value)
-        }
+        serde_yaml::Value::Tagged(tagged) => yaml_to_node(tagged.value),
     }
 }
 
