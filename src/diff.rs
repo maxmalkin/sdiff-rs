@@ -196,7 +196,6 @@ pub fn compute_diff(old: &Node, new: &Node, config: &DiffConfig) -> Diff {
     let mut changes = Vec::new();
     diff_nodes(old, new, Vec::new(), &mut changes, config);
 
-    // Compute statistics from changes
     let mut stats = DiffStats::new();
     for change in &changes {
         match change.change_type {
@@ -229,19 +228,15 @@ fn diff_nodes(
     changes: &mut Vec<Change>,
     config: &DiffConfig,
 ) {
-    // Check if nodes are semantically equal first (optimization)
     if nodes_equal(old, new, config) {
-        // For containers, recurse to check nested changes
         if let (Node::Object(old_map), Node::Object(new_map)) = (old, new) {
             diff_objects(old_map, new_map, path, changes, config);
         } else if let (Node::Array(old_arr), Node::Array(new_arr)) = (old, new) {
             diff_arrays(old_arr, new_arr, path, changes, config);
         }
-        // For leaf values that are equal, we don't record anything (no change)
         return;
     }
 
-    // Handle different types or different values
     match (old, new) {
         (Node::Object(old_map), Node::Object(new_map)) => {
             diff_objects(old_map, new_map, path, changes, config);
@@ -250,7 +245,6 @@ fn diff_nodes(
             diff_arrays(old_arr, new_arr, path, changes, config);
         }
         _ => {
-            // Different types or different primitive values
             changes.push(Change {
                 path,
                 change_type: ChangeType::Modified,
@@ -282,11 +276,9 @@ fn diff_objects(
     changes: &mut Vec<Change>,
     config: &DiffConfig,
 ) {
-    // Get all unique keys from both maps
     let old_keys: HashSet<&String> = old_map.keys().collect();
     let new_keys: HashSet<&String> = new_map.keys().collect();
 
-    // Find added keys (in new but not old)
     for key in new_keys.difference(&old_keys) {
         let mut new_path = path.clone();
         new_path.push((*key).clone());
@@ -300,7 +292,6 @@ fn diff_objects(
         });
     }
 
-    // Find removed keys (in old but not new)
     for key in old_keys.difference(&new_keys) {
         let mut new_path = path.clone();
         new_path.push((*key).clone());
@@ -314,7 +305,6 @@ fn diff_objects(
         });
     }
 
-    // Compare values for keys present in both
     for key in old_keys.intersection(&new_keys) {
         let mut new_path = path.clone();
         new_path.push((*key).clone());
@@ -351,14 +341,12 @@ fn diff_arrays(
         ArrayDiffStrategy::Positional => {
             let min_len = old_arr.len().min(new_arr.len());
 
-            // Compare elements at the same index
             for i in 0..min_len {
                 let mut new_path = path.clone();
                 new_path.push(format!("[{}]", i));
                 diff_nodes(&old_arr[i], &new_arr[i], new_path, changes, config);
             }
 
-            // Handle extra elements in old array (removed)
             for (i, item) in old_arr.iter().enumerate().skip(min_len) {
                 let mut new_path = path.clone();
                 new_path.push(format!("[{}]", i));
@@ -370,7 +358,6 @@ fn diff_arrays(
                 });
             }
 
-            // Handle extra elements in new array (added)
             for (i, item) in new_arr.iter().enumerate().skip(min_len) {
                 let mut new_path = path.clone();
                 new_path.push(format!("[{}]", i));
@@ -400,14 +387,12 @@ fn diff_arrays(
 ///
 /// Returns true if the nodes are considered equal.
 fn nodes_equal(old: &Node, new: &Node, config: &DiffConfig) -> bool {
-    // Handle whitespace normalization for strings
     if config.ignore_whitespace {
         if let (Node::String(s1), Node::String(s2)) = (old, new) {
             return normalize_whitespace(s1) == normalize_whitespace(s2);
         }
     }
 
-    // Use semantic equality from the Node implementation
     old.semantic_equals(new)
 }
 

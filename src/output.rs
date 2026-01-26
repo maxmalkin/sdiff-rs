@@ -303,10 +303,8 @@ fn format_path(path: &[String]) -> String {
     let mut result = String::new();
     for (i, component) in path.iter().enumerate() {
         if component.starts_with('[') {
-            // Array index - append directly
             result.push_str(component);
         } else {
-            // Object key - add dot separator if not first component
             if i > 0 {
                 result.push('.');
             }
