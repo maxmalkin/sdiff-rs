@@ -97,14 +97,11 @@ fn main() {
     }
 }
 
-/// Main application logic
 fn run(cli: Cli) -> Result<i32> {
-    // Verbose logging
     if cli.verbose {
         eprintln!("Parsing {}...", cli.file1.display());
     }
 
-    // Parse first file
     let old = parse_file(&cli.file1)
         .with_context(|| format!("Failed to parse first file: {}", cli.file1.display()))?;
 
@@ -112,7 +109,6 @@ fn run(cli: Cli) -> Result<i32> {
         eprintln!("Parsing {}...", cli.file2.display());
     }
 
-    // Parse second file
     let new = parse_file(&cli.file2)
         .with_context(|| format!("Failed to parse second file: {}", cli.file2.display()))?;
 
@@ -120,21 +116,18 @@ fn run(cli: Cli) -> Result<i32> {
         eprintln!("Computing diff...");
     }
 
-    // Configure diff
     let diff_config = DiffConfig {
         ignore_whitespace: cli.ignore_whitespace,
         treat_null_as_missing: cli.null_as_missing,
         array_diff_strategy: ArrayDiffStrategy::Positional,
     };
 
-    // Compute diff
     let diff = compute_diff(&old, &new, &diff_config);
 
     if cli.verbose {
         eprintln!("Formatting output...");
     }
 
-    // Configure output
     let output_options = OutputOptions {
         compact: cli.compact,
         show_values: cli.show_values,
@@ -142,16 +135,13 @@ fn run(cli: Cli) -> Result<i32> {
         context_lines: 0,
     };
 
-    // Format output
     let output_format: OutputFormat = cli.format.into();
     let output = format_diff(&diff, &output_format, &output_options)
         .context("Failed to format diff output")?;
 
-    // Print output
     if !cli.quiet {
         println!("{}", output);
     } else {
-        // In quiet mode, only show changes (no summary)
         let lines: Vec<&str> = output.lines().collect();
         for line in lines {
             if !line.starts_with("Summary:") && !line.trim().is_empty() {
@@ -160,7 +150,6 @@ fn run(cli: Cli) -> Result<i32> {
         }
     }
 
-    // Exit code: 0 if no changes, 1 if changes found
     if diff.is_empty() {
         Ok(0)
     } else {
