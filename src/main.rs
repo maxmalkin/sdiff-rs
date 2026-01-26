@@ -62,6 +62,10 @@ struct Cli {
     #[arg(long)]
     ignore_whitespace: bool,
 
+    /// Array comparison strategy
+    #[arg(long, value_enum, default_value = "positional")]
+    array_strategy: ArrayStrategyArg,
+
     /// Ignore paths matching these patterns (can be used multiple times)
     #[arg(long = "ignore", value_name = "PATTERN")]
     ignore_patterns: Vec<String>,
@@ -120,6 +124,24 @@ impl From<InputFormatArg> for FormatHint {
             InputFormatArg::Yaml => FormatHint::Yaml,
             InputFormatArg::Toml => FormatHint::Toml,
             InputFormatArg::Auto => FormatHint::Auto,
+        }
+    }
+}
+
+/// Array comparison strategy argument for clap
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum ArrayStrategyArg {
+    /// Compare arrays by index position (simple, fast)
+    Positional,
+    /// Use LCS algorithm to detect insertions and deletions
+    Lcs,
+}
+
+impl From<ArrayStrategyArg> for ArrayDiffStrategy {
+    fn from(arg: ArrayStrategyArg) -> Self {
+        match arg {
+            ArrayStrategyArg::Positional => ArrayDiffStrategy::Positional,
+            ArrayStrategyArg::Lcs => ArrayDiffStrategy::Lcs,
         }
     }
 }
@@ -189,7 +211,7 @@ fn run(cli: Cli) -> Result<i32> {
     let diff_config = DiffConfig {
         ignore_whitespace: cli.ignore_whitespace,
         treat_null_as_missing: cli.null_as_missing,
-        array_diff_strategy: ArrayDiffStrategy::Positional,
+        array_diff_strategy: cli.array_strategy.into(),
     };
 
     let mut diff = compute_diff(&old, &new, &diff_config);

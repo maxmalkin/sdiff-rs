@@ -130,16 +130,13 @@ impl Default for Diff {
 }
 
 /// Strategy for comparing arrays.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ArrayDiffStrategy {
     /// Compare arrays by index position (simple, fast)
+    #[default]
     Positional,
-}
-
-impl Default for ArrayDiffStrategy {
-    fn default() -> Self {
-        Self::Positional
-    }
+    /// Use Longest Common Subsequence algorithm to detect insertions and deletions
+    Lcs,
 }
 
 /// Configuration for the diff algorithm.
@@ -318,10 +315,9 @@ fn diff_objects(
 
 /// Compares two arrays and collects changes.
 ///
-/// Uses the configured strategy (currently only Positional is supported).
-/// For positional comparison:
-/// - Elements at the same index are compared
-/// - If arrays have different lengths, extra elements are marked as added/removed
+/// Uses the configured strategy:
+/// - Positional: Compare by index position (simple, fast)
+/// - LCS: Use Longest Common Subsequence to detect insertions/deletions
 ///
 /// # Arguments
 ///
@@ -339,34 +335,156 @@ fn diff_arrays(
 ) {
     match config.array_diff_strategy {
         ArrayDiffStrategy::Positional => {
-            let min_len = old_arr.len().min(new_arr.len());
+            diff_arrays_positional(old_arr, new_arr, path, changes, config);
+        }
+        ArrayDiffStrategy::Lcs => {
+            diff_arrays_lcs(old_arr, new_arr, path, changes, config);
+        }
+    }
+}
 
-            for i in 0..min_len {
-                let mut new_path = path.clone();
-                new_path.push(format!("[{}]", i));
-                diff_nodes(&old_arr[i], &new_arr[i], new_path, changes, config);
+/// Compares arrays using positional (index-based) strategy.
+fn diff_arrays_positional(
+    old_arr: &[Node],
+    new_arr: &[Node],
+    path: Vec<String>,
+    changes: &mut Vec<Change>,
+    config: &DiffConfig,
+) {
+    let min_len = old_arr.len().min(new_arr.len());
+
+    for i in 0..min_len {
+        let mut new_path = path.clone();
+        new_path.push(format!("[{}]", i));
+        diff_nodes(&old_arr[i], &new_arr[i], new_path, changes, config);
+    }
+
+    for (i, item) in old_arr.iter().enumerate().skip(min_len) {
+        let mut new_path = path.clone();
+        new_path.push(format!("[{}]", i));
+        changes.push(Change {
+            path: new_path,
+            change_type: ChangeType::Removed,
+            old_value: Some(item.clone()),
+            new_value: None,
+        });
+    }
+
+    for (i, item) in new_arr.iter().enumerate().skip(min_len) {
+        let mut new_path = path.clone();
+        new_path.push(format!("[{}]", i));
+        changes.push(Change {
+            path: new_path,
+            change_type: ChangeType::Added,
+            old_value: None,
+            new_value: Some(item.clone()),
+        });
+    }
+}
+
+/// Edit operation for LCS algorithm.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum EditOp {
+    /// Keep element (from both old and new)
+    Keep(usize, usize),
+    /// Delete element from old array
+    Delete(usize),
+    /// Insert element from new array
+    Insert(usize),
+}
+
+/// Computes the LCS-based edit operations between two arrays.
+///
+/// Uses standard dynamic programming approach with O(n*m) time and space.
+/// Returns a sequence of edit operations that transforms old into new.
+fn compute_lcs_edits(old: &[Node], new: &[Node], config: &DiffConfig) -> Vec<EditOp> {
+    let n = old.len();
+    let m = new.len();
+
+    // Build LCS length table
+    // dp[i][j] = length of LCS of old[0..i] and new[0..j]
+    let mut dp = vec![vec![0usize; m + 1]; n + 1];
+
+    for i in 1..=n {
+        for j in 1..=m {
+            if nodes_equal(&old[i - 1], &new[j - 1], config) {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = dp[i - 1][j].max(dp[i][j - 1]);
             }
+        }
+    }
 
-            for (i, item) in old_arr.iter().enumerate().skip(min_len) {
+    // Backtrack to find edit operations
+    let mut edits = Vec::new();
+    let mut i = n;
+    let mut j = m;
+
+    while i > 0 || j > 0 {
+        if i > 0 && j > 0 && nodes_equal(&old[i - 1], &new[j - 1], config) {
+            edits.push(EditOp::Keep(i - 1, j - 1));
+            i -= 1;
+            j -= 1;
+        } else if j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]) {
+            edits.push(EditOp::Insert(j - 1));
+            j -= 1;
+        } else {
+            edits.push(EditOp::Delete(i - 1));
+            i -= 1;
+        }
+    }
+
+    edits.reverse();
+    edits
+}
+
+/// Compares arrays using Longest Common Subsequence algorithm.
+///
+/// This strategy detects true insertions and deletions rather than
+/// just positional changes. It's better for arrays where elements
+/// may be inserted in the middle.
+fn diff_arrays_lcs(
+    old_arr: &[Node],
+    new_arr: &[Node],
+    path: Vec<String>,
+    changes: &mut Vec<Change>,
+    config: &DiffConfig,
+) {
+    let edits = compute_lcs_edits(old_arr, new_arr, config);
+
+    // Track current position in new array for indexing
+    let mut new_idx = 0;
+
+    for edit in edits {
+        match edit {
+            EditOp::Keep(old_idx, new_i) => {
+                // Elements match, but recursively diff in case of nested differences
                 let mut new_path = path.clone();
-                new_path.push(format!("[{}]", i));
+                new_path.push(format!("[{}]", new_i));
+                diff_nodes(&old_arr[old_idx], &new_arr[new_i], new_path, changes, config);
+                new_idx = new_i + 1;
+            }
+            EditOp::Delete(old_idx) => {
+                let mut new_path = path.clone();
+                // Use current new_idx for path (shows where in result this was removed from)
+                new_path.push(format!("[{}]", new_idx));
                 changes.push(Change {
                     path: new_path,
                     change_type: ChangeType::Removed,
-                    old_value: Some(item.clone()),
+                    old_value: Some(old_arr[old_idx].clone()),
                     new_value: None,
                 });
             }
-
-            for (i, item) in new_arr.iter().enumerate().skip(min_len) {
+            EditOp::Insert(new_i) => {
                 let mut new_path = path.clone();
-                new_path.push(format!("[{}]", i));
+                new_path.push(format!("[{}]", new_i));
                 changes.push(Change {
                     path: new_path,
                     change_type: ChangeType::Added,
                     old_value: None,
-                    new_value: Some(item.clone()),
+                    new_value: Some(new_arr[new_i].clone()),
                 });
+                new_idx = new_i + 1;
             }
         }
     }
