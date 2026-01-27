@@ -7,9 +7,15 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use sdiff::{
-    compute_diff, filter::filter_diff, filter::FilterConfig, format_diff, parse_content,
-    parse_file, ArrayDiffStrategy, DiffConfig, FormatHint, OutputFormat, OutputOptions,
+    compute_diff,
+    filter::filter_diff,
+    filter::FilterConfig,
+    format_diff,
+    git::{self, detect_git_diff_driver_args, is_null_file},
+    parse_content, parse_file, ArrayDiffStrategy, DiffConfig, FormatHint, OutputFormat,
+    OutputOptions,
 };
+use std::env;
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process;
@@ -27,12 +33,12 @@ use std::process;
 #[command(author = "SDIFF Contributors")]
 struct Cli {
     /// First file to compare (use "-" for stdin)
-    #[arg(value_name = "FILE1")]
-    file1: String,
+    #[arg(value_name = "FILE1", required_unless_present_any = ["git_install", "git_uninstall", "git_status"])]
+    file1: Option<String>,
 
     /// Second file to compare (use "-" for stdin)
-    #[arg(value_name = "FILE2")]
-    file2: String,
+    #[arg(value_name = "FILE2", required_unless_present_any = ["git_install", "git_uninstall", "git_status"])]
+    file2: Option<String>,
 
     /// Output format
     #[arg(short = 'f', long, value_enum, default_value = "terminal")]
@@ -81,6 +87,22 @@ struct Cli {
     /// Quiet mode (only show changes, suppress summary)
     #[arg(short, long)]
     quiet: bool,
+
+    /// Install sdiff as a git difftool
+    #[arg(long)]
+    git_install: bool,
+
+    /// Uninstall sdiff from git configuration
+    #[arg(long)]
+    git_uninstall: bool,
+
+    /// Show git configuration status
+    #[arg(long)]
+    git_status: bool,
+
+    /// Additional arguments (for git diff driver 7-arg mode)
+    #[arg(hide = true, trailing_var_arg = true)]
+    extra_args: Vec<String>,
 }
 
 /// Output format argument for clap
@@ -147,6 +169,19 @@ impl From<ArrayStrategyArg> for ArrayDiffStrategy {
 }
 
 fn main() {
+    // Check for git 7-argument diff driver mode before parsing with clap
+    // Git passes: path old-file old-hex old-mode new-file new-hex new-mode
+    let args: Vec<String> = env::args().skip(1).collect();
+    if let Some((old_file, new_file)) = detect_git_diff_driver_args(&args) {
+        match run_git_diff_driver(&old_file, &new_file) {
+            Ok(exit_code) => process::exit(exit_code),
+            Err(err) => {
+                eprintln!("Error: {}", err);
+                process::exit(2);
+            }
+        }
+    }
+
     let cli = Cli::parse();
 
     match run(cli) {
@@ -158,9 +193,70 @@ fn main() {
     }
 }
 
+/// Runs sdiff in git diff driver mode with the extracted file paths.
+fn run_git_diff_driver(old_file: &str, new_file: &str) -> Result<i32> {
+    // Handle /dev/null for added/deleted files
+    if is_null_file(old_file) {
+        println!("File added");
+        let new = parse_file(&PathBuf::from(new_file))
+            .with_context(|| format!("Failed to parse new file: {}", new_file))?;
+        println!("New content: {}", new.preview(200));
+        return Ok(1);
+    }
+
+    if is_null_file(new_file) {
+        println!("File deleted");
+        let old = parse_file(&PathBuf::from(old_file))
+            .with_context(|| format!("Failed to parse old file: {}", old_file))?;
+        println!("Deleted content: {}", old.preview(200));
+        return Ok(1);
+    }
+
+    // Normal diff
+    let old = parse_file(&PathBuf::from(old_file))
+        .with_context(|| format!("Failed to parse old file: {}", old_file))?;
+    let new = parse_file(&PathBuf::from(new_file))
+        .with_context(|| format!("Failed to parse new file: {}", new_file))?;
+
+    let config = DiffConfig::default();
+    let diff = compute_diff(&old, &new, &config);
+
+    let output_options = OutputOptions::default();
+    let output = format_diff(&diff, &OutputFormat::Terminal, &output_options)
+        .context("Failed to format diff output")?;
+
+    println!("{}", output);
+
+    if diff.is_empty() {
+        Ok(0)
+    } else {
+        Ok(1)
+    }
+}
+
 fn run(cli: Cli) -> Result<i32> {
-    let file1_is_stdin = cli.file1 == "-";
-    let file2_is_stdin = cli.file2 == "-";
+    // Handle git commands first
+    if cli.git_install {
+        git::install().context("Failed to install git integration")?;
+        return Ok(0);
+    }
+
+    if cli.git_uninstall {
+        git::uninstall().context("Failed to uninstall git integration")?;
+        return Ok(0);
+    }
+
+    if cli.git_status {
+        git::status().context("Failed to get git status")?;
+        return Ok(0);
+    }
+
+    // Normal diff mode - files are required
+    let file1 = cli.file1.as_ref().expect("file1 is required for diff");
+    let file2 = cli.file2.as_ref().expect("file2 is required for diff");
+
+    let file1_is_stdin = file1 == "-";
+    let file2_is_stdin = file2 == "-";
 
     // Validate stdin usage
     if file1_is_stdin && file2_is_stdin {
@@ -181,27 +277,27 @@ fn run(cli: Cli) -> Result<i32> {
     };
 
     if cli.verbose {
-        eprintln!("Parsing {}...", &cli.file1);
+        eprintln!("Parsing {}...", file1);
     }
 
     let old = if file1_is_stdin {
         parse_content(stdin_content.as_ref().unwrap(), format_hint, "<stdin>")
             .context("Failed to parse stdin")?
     } else {
-        parse_file(&PathBuf::from(&cli.file1))
-            .with_context(|| format!("Failed to parse first file: {}", &cli.file1))?
+        parse_file(&PathBuf::from(file1))
+            .with_context(|| format!("Failed to parse first file: {}", file1))?
     };
 
     if cli.verbose {
-        eprintln!("Parsing {}...", &cli.file2);
+        eprintln!("Parsing {}...", file2);
     }
 
     let new = if file2_is_stdin {
         parse_content(stdin_content.as_ref().unwrap(), format_hint, "<stdin>")
             .context("Failed to parse stdin")?
     } else {
-        parse_file(&PathBuf::from(&cli.file2))
-            .with_context(|| format!("Failed to parse second file: {}", &cli.file2))?
+        parse_file(&PathBuf::from(file2))
+            .with_context(|| format!("Failed to parse second file: {}", file2))?
     };
 
     if cli.verbose {
