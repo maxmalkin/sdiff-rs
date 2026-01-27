@@ -160,13 +160,11 @@ pub fn parse_file(path: &Path) -> Result<Node, ParseError> {
             .map_err(|e| ParseError::yaml_error(path.to_string_lossy().to_string(), e)),
         Some("toml") => parse_toml(&content)
             .map_err(|e| ParseError::toml_error(path.to_string_lossy().to_string(), e)),
-        _ => {
-            parse_json(&content)
-                .map_err(|_| ())
-                .or_else(|_| parse_yaml(&content).map_err(|_| ()))
-                .or_else(|_| parse_toml(&content).map_err(|_| ()))
-                .map_err(|_| ParseError::unknown_format(path.to_string_lossy().to_string()))
-        }
+        _ => parse_json(&content)
+            .map_err(|_| ())
+            .or_else(|_| parse_yaml(&content).map_err(|_| ()))
+            .or_else(|_| parse_toml(&content).map_err(|_| ()))
+            .map_err(|_| ParseError::unknown_format(path.to_string_lossy().to_string())),
     }
 }
 
