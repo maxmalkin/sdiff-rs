@@ -42,28 +42,6 @@ pub enum FormatHint {
 }
 
 /// Parses content from stdin into a Node.
-///
-/// Since stdin has no file extension, format detection relies on the provided
-/// hint or tries JSON, YAML, and TOML in sequence if hint is Auto.
-///
-/// # Arguments
-///
-/// * `hint` - Format hint for parsing (Auto will try all formats)
-///
-/// # Returns
-///
-/// Returns the parsed Node on success, or a ParseError on failure.
-///
-/// # Examples
-///
-/// ```no_run
-/// use sdiff::parser::{parse_stdin, FormatHint};
-///
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let node = parse_stdin(FormatHint::Json)?;
-/// # Ok(())
-/// # }
-/// ```
 pub fn parse_stdin(hint: FormatHint) -> Result<Node, ParseError> {
     let mut content = String::new();
     io::stdin()
@@ -74,16 +52,6 @@ pub fn parse_stdin(hint: FormatHint) -> Result<Node, ParseError> {
 }
 
 /// Parses content string with the given format hint.
-///
-/// # Arguments
-///
-/// * `content` - The content string to parse
-/// * `hint` - Format hint for parsing
-/// * `source` - Source name for error messages (e.g., filename or "<stdin>")
-///
-/// # Returns
-///
-/// Returns the parsed Node on success, or a ParseError on failure.
 pub fn parse_content(content: &str, hint: FormatHint, source: &str) -> Result<Node, ParseError> {
     match hint {
         FormatHint::Json => {
@@ -103,41 +71,7 @@ pub fn parse_content(content: &str, hint: FormatHint, source: &str) -> Result<No
     }
 }
 
-/// Parses a file into a Node AST.
-///
-/// The format is detected by file extension (.json, .yaml, .yml). If the extension
-/// is unknown or missing, this function will attempt to parse as JSON first, then
-/// YAML if JSON fails.
-///
-/// # Arguments
-///
-/// * `path` - Path to the file to parse
-///
-/// # Returns
-///
-/// Returns the parsed Node on success, or a ParseError on failure.
-///
-/// # Errors
-///
-/// This function will return an error if:
-/// - The file does not exist (`ParseError::FileNotFound`)
-/// - The file cannot be read (`ParseError::ReadError`)
-/// - The file contains invalid JSON (`ParseError::JsonError`)
-/// - The file contains invalid YAML (`ParseError::YamlError`)
-/// - The file format cannot be determined (`ParseError::UnknownFormat`)
-///
-/// # Examples
-///
-/// ```no_run
-/// use sdiff::parser::parse_file;
-/// use std::path::Path;
-///
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let node = parse_file(Path::new("data.json"))?;
-/// println!("Parsed successfully!");
-/// # Ok(())
-/// # }
-/// ```
+/// Parses a file into a Node AST. Format is detected by file extension.
 pub fn parse_file(path: &Path) -> Result<Node, ParseError> {
     if !path.exists() {
         return Err(ParseError::file_not_found(
@@ -169,89 +103,23 @@ pub fn parse_file(path: &Path) -> Result<Node, ParseError> {
 }
 
 /// Parses a JSON string into a Node.
-///
-/// # Arguments
-///
-/// * `content` - The JSON string to parse
-///
-/// # Returns
-///
-/// Returns the parsed Node on success, or a serde_json::Error on failure.
-///
-/// # Examples
-///
-/// ```
-/// use sdiff::parser::parse_json;
-///
-/// let json = r#"{"name": "Alice", "age": 30}"#;
-/// let node = parse_json(json).unwrap();
-/// ```
 pub fn parse_json(content: &str) -> Result<Node, serde_json::Error> {
     let value: serde_json::Value = serde_json::from_str(content)?;
     Ok(json_to_node(value))
 }
 
 /// Parses a YAML string into a Node.
-///
-/// # Arguments
-///
-/// * `content` - The YAML string to parse
-///
-/// # Returns
-///
-/// Returns the parsed Node on success, or a serde_yaml::Error on failure.
-///
-/// # Examples
-///
-/// ```
-/// use sdiff::parser::parse_yaml;
-///
-/// let yaml = "name: Alice\nage: 30";
-/// let node = parse_yaml(yaml).unwrap();
-/// ```
 pub fn parse_yaml(content: &str) -> Result<Node, serde_yaml::Error> {
     let value: serde_yaml::Value = serde_yaml::from_str(content)?;
     Ok(yaml_to_node(value))
 }
 
 /// Parses a TOML string into a Node.
-///
-/// # Arguments
-///
-/// * `content` - The TOML string to parse
-///
-/// # Returns
-///
-/// Returns the parsed Node on success, or a toml::de::Error on failure.
-///
-/// # Examples
-///
-/// ```
-/// use sdiff::parser::parse_toml;
-///
-/// let toml = r#"
-/// name = "Alice"
-/// age = 30
-/// "#;
-/// let node = parse_toml(toml).unwrap();
-/// ```
 pub fn parse_toml(content: &str) -> Result<Node, toml::de::Error> {
     let value: toml::Value = toml::from_str(content)?;
     Ok(toml_to_node(value))
 }
 
-/// Converts a serde_json::Value to our Node representation.
-///
-/// This function recursively converts JSON values to our AST, preserving all
-/// data while normalizing the representation.
-///
-/// # Arguments
-///
-/// * `value` - The serde_json::Value to convert
-///
-/// # Returns
-///
-/// Returns a Node representing the same data.
 fn json_to_node(value: serde_json::Value) -> Node {
     match value {
         serde_json::Value::Null => Node::Null,
@@ -273,21 +141,6 @@ fn json_to_node(value: serde_json::Value) -> Node {
     }
 }
 
-/// Converts a serde_yaml::Value to our Node representation.
-///
-/// This function recursively converts YAML values to our AST. YAML has additional
-/// features beyond JSON (like anchors and tags) which are evaluated during parsing,
-/// so the resulting Node represents the fully-evaluated YAML document.
-///
-/// Non-string keys in YAML maps are converted to strings for compatibility.
-///
-/// # Arguments
-///
-/// * `value` - The serde_yaml::Value to convert
-///
-/// # Returns
-///
-/// Returns a Node representing the same data.
 fn yaml_to_node(value: serde_yaml::Value) -> Node {
     match value {
         serde_yaml::Value::Null => Node::Null,
@@ -327,18 +180,6 @@ fn yaml_to_node(value: serde_yaml::Value) -> Node {
     }
 }
 
-/// Converts a toml::Value to our Node representation.
-///
-/// This function recursively converts TOML values to our AST. TOML has some
-/// additional types beyond JSON (like datetime) which are converted to strings.
-///
-/// # Arguments
-///
-/// * `value` - The toml::Value to convert
-///
-/// # Returns
-///
-/// Returns a Node representing the same data.
 fn toml_to_node(value: toml::Value) -> Node {
     match value {
         toml::Value::String(s) => Node::String(s),

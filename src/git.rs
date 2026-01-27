@@ -1,35 +1,10 @@
 //! Git integration for sdiff.
-//!
-//! This module provides functionality for integrating sdiff with git as a
-//! difftool and diff driver. It handles:
-//!
-//! - Installing/uninstalling sdiff as a git difftool
-//! - Detecting when sdiff is called with git's 7-argument diff driver protocol
-//! - Providing status information about the current git configuration
-//!
-//! # Usage
-//!
-//! ```bash
-//! # Install sdiff as a git difftool
-//! sdiff --git-install
-//!
-//! # Use with git
-//! git difftool -t sdiff HEAD~1 -- file.json
-//!
-//! # Check status
-//! sdiff --git-status
-//!
-//! # Uninstall
-//! sdiff --git-uninstall
-//! ```
 
 use std::env;
 use std::process::Command;
 
-/// Result type for git operations.
 pub type GitResult<T> = Result<T, GitError>;
 
-/// Errors that can occur during git operations.
 #[derive(Debug, thiserror::Error)]
 pub enum GitError {
     #[error("Failed to execute git command: {0}")]
@@ -46,28 +21,14 @@ pub enum GitError {
 }
 
 /// Installs sdiff as a git difftool and diff driver.
-///
-/// This configures git globally to use sdiff for comparing structured data files.
-/// After installation, you can use:
-/// - `git difftool -t sdiff` to compare files interactively
-/// - Configure .gitattributes to use sdiff automatically for specific file types
-///
-/// # Returns
-///
-/// Returns `Ok(())` on success, or a `GitError` if installation fails.
 pub fn install() -> GitResult<()> {
     let sdiff_path = get_executable_path()?;
 
-    // Configure difftool
     run_git_config(
         "difftool.sdiff.cmd",
         &format!("{} \"$LOCAL\" \"$REMOTE\"", sdiff_path),
     )?;
-
-    // Configure diff driver for use with .gitattributes
     run_git_config("diff.sdiff.command", &sdiff_path)?;
-
-    // Don't prompt for difftool
     run_git_config("difftool.sdiff.prompt", "false")?;
 
     println!("Successfully installed sdiff as git difftool.");
@@ -85,14 +46,7 @@ pub fn install() -> GitResult<()> {
 }
 
 /// Uninstalls sdiff from git configuration.
-///
-/// Removes the difftool and diff driver configuration added by `install()`.
-///
-/// # Returns
-///
-/// Returns `Ok(())` on success, or a `GitError` if uninstallation fails.
 pub fn uninstall() -> GitResult<()> {
-    // Remove difftool configuration
     run_git_config_unset("difftool.sdiff.cmd")?;
     run_git_config_unset("difftool.sdiff.prompt")?;
     run_git_config_unset("diff.sdiff.command")?;
@@ -103,14 +57,10 @@ pub fn uninstall() -> GitResult<()> {
 }
 
 /// Shows the current git configuration status for sdiff.
-///
-/// Displays whether sdiff is configured as a difftool and diff driver,
-/// and shows the current configuration values.
 pub fn status() -> GitResult<()> {
     println!("Git sdiff configuration status:");
     println!();
 
-    // Check difftool configuration
     match get_git_config("difftool.sdiff.cmd") {
         Ok(value) => {
             println!("  difftool.sdiff.cmd: {}", value);
@@ -140,7 +90,6 @@ pub fn status() -> GitResult<()> {
 
     println!();
 
-    // Check if any configuration exists
     let has_config = get_git_config("difftool.sdiff.cmd").is_ok()
         || get_git_config("diff.sdiff.command").is_ok();
 
@@ -156,31 +105,13 @@ pub fn status() -> GitResult<()> {
     Ok(())
 }
 
-/// Detects if the program was invoked with git's 7-argument diff driver protocol.
-///
-/// Git diff drivers receive 7 arguments:
-/// 1. path (filename)
-/// 2. old-file (temp file with old content)
-/// 3. old-hex (SHA-1 of old blob, or 0{40} for new files)
-/// 4. old-mode (file mode)
-/// 5. new-file (temp file with new content)
-/// 6. new-hex (SHA-1 of new blob, or 0{40} for deleted files)
-/// 7. new-mode (file mode)
-///
-/// # Arguments
-///
-/// * `args` - Command line arguments (excluding program name)
-///
-/// # Returns
-///
-/// Returns `Some((old_file, new_file))` if 7-arg mode is detected,
-/// or `None` if this is a normal invocation.
+/// Detects if invoked with git's 7-argument diff driver protocol.
+/// Returns `Some((old_file, new_file))` if 7-arg mode is detected.
 pub fn detect_git_diff_driver_args(args: &[String]) -> Option<(String, String)> {
     if args.len() != 7 {
         return None;
     }
 
-    // Validate that args[2] and args[5] look like SHA-1 hashes or null hashes
     let old_hex = &args[2];
     let new_hex = &args[5];
 
@@ -194,36 +125,21 @@ pub fn detect_git_diff_driver_args(args: &[String]) -> Option<(String, String)> 
     Some((old_file, new_file))
 }
 
-/// Checks if a file path represents a deleted or new file in git context.
-///
-/// Git uses "/dev/null" on Unix systems to represent non-existent files.
-///
-/// # Arguments
-///
-/// * `path` - The file path to check
-///
-/// # Returns
-///
-/// Returns `true` if the path represents a null/non-existent file.
+/// Checks if a file path represents a deleted or new file (/dev/null).
 pub fn is_null_file(path: &str) -> bool {
     path == "/dev/null" || path == "nul" || path == "NUL"
 }
 
-/// Checks if a string looks like a git SHA-1 hash.
-///
-/// Valid hashes are 40 hex characters or a null hash (40 zeros).
 fn is_git_hash(s: &str) -> bool {
     s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-/// Gets the path to the current sdiff executable.
 fn get_executable_path() -> GitResult<String> {
     env::current_exe()
         .map_err(|_| GitError::ExecutableNotFound)
         .map(|p| p.to_string_lossy().into_owned())
 }
 
-/// Runs a git config --global command to set a value.
 fn run_git_config(key: &str, value: &str) -> GitResult<()> {
     let output = Command::new("git")
         .args(["config", "--global", key, value])
@@ -238,14 +154,12 @@ fn run_git_config(key: &str, value: &str) -> GitResult<()> {
     Ok(())
 }
 
-/// Runs a git config --global --unset command.
 fn run_git_config_unset(key: &str) -> GitResult<()> {
     let output = Command::new("git")
         .args(["config", "--global", "--unset", key])
         .output()
         .map_err(|_| GitError::GitNotFound)?;
 
-    // Exit code 5 means the key doesn't exist, which is fine for unset
     if !output.status.success() && output.status.code() != Some(5) {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(GitError::GitError(stderr.into_owned()));
@@ -254,7 +168,6 @@ fn run_git_config_unset(key: &str) -> GitResult<()> {
     Ok(())
 }
 
-/// Gets a git config value.
 fn get_git_config(key: &str) -> GitResult<String> {
     let output = Command::new("git")
         .args(["config", "--global", "--get", key])

@@ -1,9 +1,3 @@
-//! SDIFF command-line interface.
-//!
-//! This is the main entry point for the sdiff CLI tool. It uses clap for
-//! argument parsing and wires together all the library modules to perform
-//! semantic diffs on structured data files.
-
 use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
 use sdiff::{
@@ -169,8 +163,6 @@ impl From<ArrayStrategyArg> for ArrayDiffStrategy {
 }
 
 fn main() {
-    // Check for git 7-argument diff driver mode before parsing with clap
-    // Git passes: path old-file old-hex old-mode new-file new-hex new-mode
     let args: Vec<String> = env::args().skip(1).collect();
     if let Some((old_file, new_file)) = detect_git_diff_driver_args(&args) {
         match run_git_diff_driver(&old_file, &new_file) {
@@ -193,9 +185,7 @@ fn main() {
     }
 }
 
-/// Runs sdiff in git diff driver mode with the extracted file paths.
 fn run_git_diff_driver(old_file: &str, new_file: &str) -> Result<i32> {
-    // Handle /dev/null for added/deleted files
     if is_null_file(old_file) {
         println!("File added");
         let new = parse_file(&PathBuf::from(new_file))
@@ -212,7 +202,6 @@ fn run_git_diff_driver(old_file: &str, new_file: &str) -> Result<i32> {
         return Ok(1);
     }
 
-    // Normal diff
     let old = parse_file(&PathBuf::from(old_file))
         .with_context(|| format!("Failed to parse old file: {}", old_file))?;
     let new = parse_file(&PathBuf::from(new_file))
@@ -235,7 +224,6 @@ fn run_git_diff_driver(old_file: &str, new_file: &str) -> Result<i32> {
 }
 
 fn run(cli: Cli) -> Result<i32> {
-    // Handle git commands first
     if cli.git_install {
         git::install().context("Failed to install git integration")?;
         return Ok(0);
@@ -251,21 +239,18 @@ fn run(cli: Cli) -> Result<i32> {
         return Ok(0);
     }
 
-    // Normal diff mode - files are required
     let file1 = cli.file1.as_ref().expect("file1 is required for diff");
     let file2 = cli.file2.as_ref().expect("file2 is required for diff");
 
     let file1_is_stdin = file1 == "-";
     let file2_is_stdin = file2 == "-";
 
-    // Validate stdin usage
     if file1_is_stdin && file2_is_stdin {
         bail!("Cannot read both inputs from stdin");
     }
 
     let format_hint: FormatHint = cli.input_format.map(Into::into).unwrap_or(FormatHint::Auto);
 
-    // Read stdin content early if needed (can only read once)
     let stdin_content = if file1_is_stdin || file2_is_stdin {
         let mut content = String::new();
         io::stdin()
@@ -312,7 +297,6 @@ fn run(cli: Cli) -> Result<i32> {
 
     let mut diff = compute_diff(&old, &new, &diff_config);
 
-    // Apply path filtering if configured
     if !cli.ignore_patterns.is_empty() || !cli.only_patterns.is_empty() {
         let mut filter_config = FilterConfig::new();
         for pattern in &cli.ignore_patterns {

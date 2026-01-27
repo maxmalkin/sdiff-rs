@@ -44,24 +44,6 @@ pub struct PathPattern {
 }
 
 impl PathPattern {
-    /// Parses a pattern string into a PathPattern.
-    ///
-    /// # Arguments
-    ///
-    /// * `pattern` - The pattern string to parse
-    ///
-    /// # Returns
-    ///
-    /// Returns a compiled PathPattern.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use sdiff::filter::PathPattern;
-    ///
-    /// let pattern = PathPattern::parse("foo.*.bar");
-    /// let pattern = PathPattern::parse("**.version");
-    /// ```
     pub fn parse(pattern: &str) -> Self {
         let segments = pattern
             .split('.')
@@ -74,43 +56,19 @@ impl PathPattern {
         Self { segments }
     }
 
-    /// Checks if this pattern matches the given path.
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - The path segments to match against
-    ///
-    /// # Returns
-    ///
-    /// Returns true if the pattern matches the path.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use sdiff::filter::PathPattern;
-    ///
-    /// let pattern = PathPattern::parse("foo.bar");
-    /// assert!(pattern.matches(&["foo".to_string(), "bar".to_string()]));
-    /// assert!(!pattern.matches(&["foo".to_string(), "baz".to_string()]));
-    /// ```
     pub fn matches(&self, path: &[String]) -> bool {
         self.matches_recursive(&self.segments, path)
     }
 
     fn matches_recursive(&self, pattern: &[PatternSegment], path: &[String]) -> bool {
         match (pattern.first(), path.first()) {
-            // Both empty - match!
             (None, None) => true,
-            // Pattern empty but path remains - no match
             (None, Some(_)) => false,
-            // Path empty but pattern remains
             (Some(_seg), None) => {
-                // Only match if remaining pattern is all double wildcards
                 pattern
                     .iter()
                     .all(|s| matches!(s, PatternSegment::DoubleWildcard))
             }
-            // Both have elements
             (Some(seg), Some(path_seg)) => match seg {
                 PatternSegment::Literal(lit) => {
                     if lit == path_seg {
@@ -121,7 +79,6 @@ impl PathPattern {
                 }
                 PatternSegment::SingleWildcard => self.matches_recursive(&pattern[1..], &path[1..]),
                 PatternSegment::DoubleWildcard => {
-                    // Try: consume no path segments, or consume one
                     self.matches_recursive(&pattern[1..], path)
                         || self.matches_recursive(pattern, &path[1..])
                 }
@@ -140,31 +97,25 @@ pub struct FilterConfig {
 }
 
 impl FilterConfig {
-    /// Creates a new empty filter configuration.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds an ignore pattern.
     pub fn ignore(mut self, pattern: &str) -> Self {
         self.ignore_patterns.push(PathPattern::parse(pattern));
         self
     }
 
-    /// Adds an only (include) pattern.
     pub fn only(mut self, pattern: &str) -> Self {
         self.only_patterns.push(PathPattern::parse(pattern));
         self
     }
 
-    /// Returns true if the configuration has any filters.
     pub fn has_filters(&self) -> bool {
         !self.ignore_patterns.is_empty() || !self.only_patterns.is_empty()
     }
 
-    /// Checks if a path should be included based on the filter configuration.
     pub fn should_include(&self, path: &[String]) -> bool {
-        // If any ignore pattern matches, exclude
         for pattern in &self.ignore_patterns {
             if pattern.matches(path) {
                 return false;
@@ -187,30 +138,6 @@ impl FilterConfig {
 }
 
 /// Filters a diff based on the filter configuration.
-///
-/// # Arguments
-///
-/// * `diff` - The diff to filter
-/// * `config` - The filter configuration
-///
-/// # Returns
-///
-/// Returns a new Diff with only the changes that pass the filter.
-///
-/// # Examples
-///
-/// ```
-/// use sdiff::{compute_diff, DiffConfig, Node};
-/// use sdiff::filter::{filter_diff, FilterConfig};
-/// use std::collections::HashMap;
-///
-/// let old = Node::Object(HashMap::new());
-/// let new = Node::Object(HashMap::new());
-/// let diff = compute_diff(&old, &new, &DiffConfig::default());
-///
-/// let filter = FilterConfig::new().ignore("metadata.**");
-/// let filtered = filter_diff(&diff, &filter);
-/// ```
 pub fn filter_diff(diff: &Diff, config: &FilterConfig) -> Diff {
     if !config.has_filters() {
         return diff.clone();
@@ -223,7 +150,6 @@ pub fn filter_diff(diff: &Diff, config: &FilterConfig) -> Diff {
         .cloned()
         .collect();
 
-    // Recompute stats from filtered changes
     let mut stats = DiffStats::new();
     for change in &filtered_changes {
         match change.change_type {

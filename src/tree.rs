@@ -1,99 +1,19 @@
 //! Abstract Syntax Tree representation for structured data.
-//!
-//! This module defines the `Node` type, which represents any value in a structured
-//! data format (JSON, YAML, etc.) as a tree. By converting files to this common
-//! representation, we can perform semantic comparisons that ignore formatting,
-//! whitespace, and key ordering differences.
-//!
-//! # Example
-//!
-//! ```
-//! use sdiff::tree::Node;
-//! use std::collections::HashMap;
-//!
-//! // Create a simple object node
-//! let mut map = HashMap::new();
-//! map.insert("name".to_string(), Node::String("Alice".to_string()));
-//! map.insert("age".to_string(), Node::Number(30.0));
-//! let node = Node::Object(map);
-//!
-//! // Check semantic equality
-//! let mut map2 = HashMap::new();
-//! map2.insert("age".to_string(), Node::Number(30.0));
-//! map2.insert("name".to_string(), Node::String("Alice".to_string()));
-//! let node2 = Node::Object(map2);
-//!
-//! // Objects are equal despite different key ordering
-//! assert!(node.semantic_equals(&node2));
-//! ```
 
 use std::collections::HashMap;
 
-/// A node in the Abstract Syntax Tree representing a value in structured data.
-///
-/// This enum covers all possible value types found in JSON and YAML:
-/// - Primitive types: null, boolean, number, string
-/// - Container types: object (key-value map), array (ordered list)
-///
-/// Using this unified representation allows semantic comparison regardless of
-/// the original file format or formatting style.
+/// A node representing a value in structured data (JSON, YAML, TOML).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Node {
-    /// Represents a null or none value.
-    ///
-    /// In JSON: `null`
-    /// In YAML: `null`, `~`, or empty
     Null,
-
-    /// Represents a boolean value.
-    ///
-    /// In JSON: `true` or `false`
-    /// In YAML: `true`, `false`, `yes`, `no`, etc.
     Bool(bool),
-
-    /// Represents a numeric value.
-    ///
-    /// All numbers are stored as f64 for compatibility across formats.
-    /// This allows both integers and floating-point numbers to be compared.
-    ///
-    /// Note: Very large integers may lose precision when converted to f64.
     Number(f64),
-
-    /// Represents a text string.
-    ///
-    /// Whitespace within strings is significant and preserved exactly.
     String(String),
-
-    /// Represents a key-value mapping (object, dictionary, map).
-    ///
-    /// In JSON: `{"key": "value"}`
-    /// In YAML: `key: value`
-    ///
-    /// Key ordering is not significant for semantic equality.
     Object(HashMap<String, Node>),
-
-    /// Represents an ordered sequence of values.
-    ///
-    /// In JSON: `[1, 2, 3]`
-    /// In YAML: `- item1` or `[1, 2, 3]`
-    ///
-    /// Element ordering is significant for semantic equality.
     Array(Vec<Node>),
 }
 
 impl Node {
-    /// Returns a human-readable name for the type of this node.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use sdiff::tree::Node;
-    ///
-    /// assert_eq!(Node::Null.type_name(), "null");
-    /// assert_eq!(Node::Bool(true).type_name(), "boolean");
-    /// assert_eq!(Node::Number(42.0).type_name(), "number");
-    /// assert_eq!(Node::String("hi".to_string()).type_name(), "string");
-    /// ```
     pub fn type_name(&self) -> &str {
         match self {
             Node::Null => "null",
@@ -105,33 +25,7 @@ impl Node {
         }
     }
 
-    /// Checks if two nodes are semantically equal.
-    ///
-    /// This is different from structural equality (`==`) because it:
-    /// - Ignores key ordering in objects
-    /// - Uses epsilon comparison for floating-point numbers
-    /// - Considers the semantic meaning rather than exact representation
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use sdiff::tree::Node;
-    /// use std::collections::HashMap;
-    ///
-    /// // Numbers are compared with epsilon tolerance
-    /// assert!(Node::Number(1.0).semantic_equals(&Node::Number(1.0 + 1e-15)));
-    ///
-    /// // Objects ignore key ordering
-    /// let mut obj1 = HashMap::new();
-    /// obj1.insert("a".to_string(), Node::Number(1.0));
-    /// obj1.insert("b".to_string(), Node::Number(2.0));
-    ///
-    /// let mut obj2 = HashMap::new();
-    /// obj2.insert("b".to_string(), Node::Number(2.0));
-    /// obj2.insert("a".to_string(), Node::Number(1.0));
-    ///
-    /// assert!(Node::Object(obj1).semantic_equals(&Node::Object(obj2)));
-    /// ```
+    /// Checks if two nodes are semantically equal (ignores key ordering, uses epsilon for floats).
     pub fn semantic_equals(&self, other: &Node) -> bool {
         match (self, other) {
             (Node::Null, Node::Null) => true,
@@ -158,30 +52,7 @@ impl Node {
         }
     }
 
-    /// Returns a short preview of the node's value for display.
-    ///
-    /// For large or complex nodes, this returns a summary rather than the full
-    /// content. The preview is truncated if it exceeds `max_len` characters.
-    ///
-    /// # Arguments
-    ///
-    /// * `max_len` - Maximum length of the preview string
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use sdiff::tree::Node;
-    ///
-    /// assert_eq!(Node::Null.preview(100), "null");
-    /// assert_eq!(Node::Bool(true).preview(100), "true");
-    /// assert_eq!(Node::Number(42.5).preview(100), "42.5");
-    /// assert_eq!(Node::String("hello".to_string()).preview(100), "\"hello\"");
-    ///
-    /// // Long strings are truncated
-    /// let long_string = "a".repeat(100);
-    /// let preview = Node::String(long_string).preview(20);
-    /// assert!(preview.len() <= 23); // 20 + quotes + ellipsis
-    /// ```
+    /// Returns a short preview of the node's value, truncated to max_len.
     pub fn preview(&self, max_len: usize) -> String {
         let preview = match self {
             Node::Null => "null".to_string(),
@@ -224,24 +95,6 @@ impl Node {
     }
 
     /// Returns an approximate size in bytes for this node.
-    ///
-    /// This is used for memory tracking and optimization decisions. The size
-    /// includes the node itself and all nested content.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use sdiff::tree::Node;
-    ///
-    /// // Primitives are small
-    /// assert!(Node::Null.size() < 100);
-    /// assert!(Node::Bool(true).size() < 100);
-    ///
-    /// // Strings include their content
-    /// let small = Node::String("hi".to_string());
-    /// let large = Node::String("x".repeat(1000));
-    /// assert!(large.size() > small.size());
-    /// ```
     pub fn size(&self) -> usize {
         match self {
             Node::Null => std::mem::size_of::<Node>(),

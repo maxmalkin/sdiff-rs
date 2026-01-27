@@ -206,18 +206,6 @@ pub fn compute_diff(old: &Node, new: &Node, config: &DiffConfig) -> Diff {
     Diff { changes, stats }
 }
 
-/// Recursively compares two nodes and collects changes.
-///
-/// This is the core recursive function that handles all node types.
-/// It delegates to specialized functions for objects and arrays.
-///
-/// # Arguments
-///
-/// * `old` - The old node
-/// * `new` - The new node
-/// * `path` - Current path in the tree (for building change paths)
-/// * `changes` - Accumulator for changes
-/// * `config` - Diff configuration
 fn diff_nodes(
     old: &Node,
     new: &Node,
@@ -252,20 +240,6 @@ fn diff_nodes(
     }
 }
 
-/// Compares two objects (maps) and collects changes.
-///
-/// This function:
-/// 1. Finds keys that were added (in new but not old)
-/// 2. Finds keys that were removed (in old but not new)
-/// 3. Recursively compares values for keys present in both
-///
-/// # Arguments
-///
-/// * `old_map` - The old object
-/// * `new_map` - The new object
-/// * `path` - Current path in the tree
-/// * `changes` - Accumulator for changes
-/// * `config` - Diff configuration
 fn diff_objects(
     old_map: &std::collections::HashMap<String, Node>,
     new_map: &std::collections::HashMap<String, Node>,
@@ -313,19 +287,6 @@ fn diff_objects(
     }
 }
 
-/// Compares two arrays and collects changes.
-///
-/// Uses the configured strategy:
-/// - Positional: Compare by index position (simple, fast)
-/// - LCS: Use Longest Common Subsequence to detect insertions/deletions
-///
-/// # Arguments
-///
-/// * `old_arr` - The old array
-/// * `new_arr` - The new array
-/// * `path` - Current path in the tree
-/// * `changes` - Accumulator for changes
-/// * `config` - Diff configuration
 fn diff_arrays(
     old_arr: &[Node],
     new_arr: &[Node],
@@ -343,7 +304,6 @@ fn diff_arrays(
     }
 }
 
-/// Compares arrays using positional (index-based) strategy.
 fn diff_arrays_positional(
     old_arr: &[Node],
     new_arr: &[Node],
@@ -382,27 +342,17 @@ fn diff_arrays_positional(
     }
 }
 
-/// Edit operation for LCS algorithm.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum EditOp {
-    /// Keep element (from both old and new)
     Keep(usize, usize),
-    /// Delete element from old array
     Delete(usize),
-    /// Insert element from new array
     Insert(usize),
 }
 
-/// Computes the LCS-based edit operations between two arrays.
-///
-/// Uses standard dynamic programming approach with O(n*m) time and space.
-/// Returns a sequence of edit operations that transforms old into new.
 fn compute_lcs_edits(old: &[Node], new: &[Node], config: &DiffConfig) -> Vec<EditOp> {
     let n = old.len();
     let m = new.len();
 
-    // Build LCS length table
-    // dp[i][j] = length of LCS of old[0..i] and new[0..j]
     let mut dp = vec![vec![0usize; m + 1]; n + 1];
 
     for i in 1..=n {
@@ -415,7 +365,6 @@ fn compute_lcs_edits(old: &[Node], new: &[Node], config: &DiffConfig) -> Vec<Edi
         }
     }
 
-    // Backtrack to find edit operations
     let mut edits = Vec::new();
     let mut i = n;
     let mut j = m;
@@ -438,11 +387,6 @@ fn compute_lcs_edits(old: &[Node], new: &[Node], config: &DiffConfig) -> Vec<Edi
     edits
 }
 
-/// Compares arrays using Longest Common Subsequence algorithm.
-///
-/// This strategy detects true insertions and deletions rather than
-/// just positional changes. It's better for arrays where elements
-/// may be inserted in the middle.
 fn diff_arrays_lcs(
     old_arr: &[Node],
     new_arr: &[Node],
@@ -452,13 +396,11 @@ fn diff_arrays_lcs(
 ) {
     let edits = compute_lcs_edits(old_arr, new_arr, config);
 
-    // Track current position in new array for indexing
     let mut new_idx = 0;
 
     for edit in edits {
         match edit {
             EditOp::Keep(old_idx, new_i) => {
-                // Elements match, but recursively diff in case of nested differences
                 let mut new_path = path.clone();
                 new_path.push(format!("[{}]", new_i));
                 diff_nodes(
@@ -472,7 +414,6 @@ fn diff_arrays_lcs(
             }
             EditOp::Delete(old_idx) => {
                 let mut new_path = path.clone();
-                // Use current new_idx for path (shows where in result this was removed from)
                 new_path.push(format!("[{}]", new_idx));
                 changes.push(Change {
                     path: new_path,
@@ -496,20 +437,6 @@ fn diff_arrays_lcs(
     }
 }
 
-/// Checks if two nodes are equal according to the configuration.
-///
-/// This respects configuration options like `ignore_whitespace` and
-/// `treat_null_as_missing`.
-///
-/// # Arguments
-///
-/// * `old` - The old node
-/// * `new` - The new node
-/// * `config` - Diff configuration
-///
-/// # Returns
-///
-/// Returns true if the nodes are considered equal.
 fn nodes_equal(old: &Node, new: &Node, config: &DiffConfig) -> bool {
     if config.ignore_whitespace {
         if let (Node::String(s1), Node::String(s2)) = (old, new) {
@@ -520,15 +447,6 @@ fn nodes_equal(old: &Node, new: &Node, config: &DiffConfig) -> bool {
     old.semantic_equals(new)
 }
 
-/// Normalizes whitespace in a string (trim and collapse multiple spaces).
-///
-/// # Arguments
-///
-/// * `s` - The string to normalize
-///
-/// # Returns
-///
-/// Returns the normalized string.
 fn normalize_whitespace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }

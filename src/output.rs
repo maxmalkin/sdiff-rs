@@ -1,51 +1,22 @@
 //! Output formatting for diff results.
-//!
-//! This module handles formatting diff results in various output formats
-//! (terminal with colors, JSON, plain text). It provides control over
-//! what is displayed and how values are formatted.
-//!
-//! # Examples
-//!
-//! ```
-//! use sdiff::{Node, compute_diff, DiffConfig, format_diff, OutputFormat, OutputOptions};
-//!
-//! let old = Node::Number(42.0);
-//! let new = Node::Number(43.0);
-//! let diff = compute_diff(&old, &new, &DiffConfig::default());
-//!
-//! let output = format_diff(&diff, &OutputFormat::Terminal, &OutputOptions::default()).unwrap();
-//! println!("{}", output);
-//! ```
 
 use crate::diff::{Change, ChangeType, Diff};
 use crate::error::OutputError;
 use crate::tree::Node;
 use colored::*;
 
-/// Output format options.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
-    /// Colored terminal output with ANSI escape codes
     Terminal,
-    /// JSON representation of the diff
     Json,
-    /// Plain text, no colors (suitable for piping)
     Plain,
 }
 
-/// Options for controlling output formatting.
-///
-/// These options control what information is displayed and how values
-/// are formatted in the output.
 #[derive(Debug, Clone)]
 pub struct OutputOptions {
-    /// Hide unchanged fields (only show changes)
     pub compact: bool,
-    /// Show full values instead of previews for large values
     pub show_values: bool,
-    /// Maximum length for displayed values (truncate if longer)
     pub max_value_length: usize,
-    /// Show N unchanged lines around changes (context)
     pub context_lines: usize,
 }
 
@@ -61,30 +32,6 @@ impl Default for OutputOptions {
 }
 
 /// Formats a diff according to the specified format and options.
-///
-/// # Arguments
-///
-/// * `diff` - The diff to format
-/// * `format` - The output format (Terminal, JSON, or Plain)
-/// * `options` - Formatting options
-///
-/// # Returns
-///
-/// Returns the formatted string on success, or an OutputError on failure.
-///
-/// # Examples
-///
-/// ```
-/// use sdiff::{Node, compute_diff, DiffConfig, format_diff, OutputFormat, OutputOptions};
-///
-/// let old = Node::Number(42.0);
-/// let new = Node::Number(43.0);
-/// let diff = compute_diff(&old, &new, &DiffConfig::default());
-///
-/// let output = format_diff(&diff, &OutputFormat::Terminal, &OutputOptions::default()).unwrap();
-/// assert!(output.contains("42"));
-/// assert!(output.contains("43"));
-/// ```
 pub fn format_diff(
     diff: &Diff,
     format: &OutputFormat,
@@ -97,22 +44,6 @@ pub fn format_diff(
     }
 }
 
-/// Formats a diff for terminal output with colors.
-///
-/// Color scheme:
-/// - Added: green (bright_green for symbols)
-/// - Removed: red (bright_red for symbols)
-/// - Modified: yellow (bright_yellow for symbols)
-/// - Unchanged: dim white (if shown)
-///
-/// # Arguments
-///
-/// * `diff` - The diff to format
-/// * `options` - Formatting options
-///
-/// # Returns
-///
-/// Returns the formatted colored string.
 fn format_terminal(diff: &Diff, options: &OutputOptions) -> String {
     let mut output = String::new();
 
@@ -138,7 +69,6 @@ fn format_terminal(diff: &Diff, options: &OutputOptions) -> String {
     output
 }
 
-/// Formats a single change for terminal output.
 fn format_change_terminal(change: &Change, options: &OutputOptions) -> String {
     let path = format_path(&change.path);
 
@@ -172,17 +102,6 @@ fn format_change_terminal(change: &Change, options: &OutputOptions) -> String {
     }
 }
 
-/// Formats a diff as JSON.
-///
-/// The JSON structure includes both the changes and statistics.
-///
-/// # Arguments
-///
-/// * `diff` - The diff to format
-///
-/// # Returns
-///
-/// Returns the JSON string on success, or an OutputError on failure.
 fn format_json(diff: &Diff) -> Result<String, OutputError> {
     use serde_json::json;
 
@@ -213,18 +132,6 @@ fn format_json(diff: &Diff) -> Result<String, OutputError> {
         .map_err(|e| OutputError::JsonSerializationError { source: e })
 }
 
-/// Formats a diff for plain text output (no colors).
-///
-/// Uses the same format as terminal output but without ANSI color codes.
-///
-/// # Arguments
-///
-/// * `diff` - The diff to format
-/// * `options` - Formatting options
-///
-/// # Returns
-///
-/// Returns the formatted plain text string.
 fn format_plain(diff: &Diff, options: &OutputOptions) -> String {
     let mut output = String::new();
 
@@ -250,7 +157,6 @@ fn format_plain(diff: &Diff, options: &OutputOptions) -> String {
     output
 }
 
-/// Formats a single change for plain text output.
 fn format_change_plain(change: &Change, options: &OutputOptions) -> String {
     let path = format_path(&change.path);
 
@@ -277,24 +183,6 @@ fn format_change_plain(change: &Change, options: &OutputOptions) -> String {
     }
 }
 
-/// Converts a path vector to a readable string.
-///
-/// Joins path components with dots for object keys and preserves
-/// array index notation.
-///
-/// # Arguments
-///
-/// * `path` - The path vector
-///
-/// # Returns
-///
-/// Returns the formatted path string.
-///
-/// # Examples
-///
-/// - `["user", "name"]` → `"user.name"`
-/// - `["items", "[0]", "id"]` → `"items[0].id"`
-/// - `["[0]"]` → `"[0]"`
 fn format_path(path: &[String]) -> String {
     if path.is_empty() {
         return "(root)".to_string();
@@ -314,51 +202,18 @@ fn format_path(path: &[String]) -> String {
     result
 }
 
-/// Formats a node value for display.
-///
-/// Shows a preview of the value, truncating if it exceeds max_length.
-///
-/// # Arguments
-///
-/// * `node` - The node to format
-/// * `max_length` - Maximum length before truncation
-///
-/// # Returns
-///
-/// Returns the formatted value string.
 fn format_value(node: &Node, max_length: usize) -> String {
     node.preview(max_length)
 }
 
-/// Determines if a change should be shown based on options.
-///
-/// # Arguments
-///
-/// * `change` - The change to check
-/// * `options` - Formatting options
-///
-/// # Returns
-///
-/// Returns true if the change should be displayed.
 fn should_show_change(change: &Change, options: &OutputOptions) -> bool {
     if options.compact {
-        // In compact mode, hide unchanged values
         !matches!(change.change_type, ChangeType::Unchanged)
     } else {
-        // In non-compact mode, show everything
         true
     }
 }
 
-/// Formats summary statistics.
-///
-/// # Arguments
-///
-/// * `stats` - The diff statistics
-///
-/// # Returns
-///
-/// Returns the formatted summary string.
 fn format_summary(stats: &crate::diff::DiffStats) -> String {
     if stats.is_empty() {
         return "Summary: No changes".to_string();
@@ -381,15 +236,6 @@ fn format_summary(stats: &crate::diff::DiffStats) -> String {
     format!("Summary: {}", parts.join(", "))
 }
 
-/// Converts a Node to a serde_json::Value for JSON serialization.
-///
-/// # Arguments
-///
-/// * `node` - The node to convert
-///
-/// # Returns
-///
-/// Returns the JSON value.
 fn node_to_json_value(node: &Node) -> serde_json::Value {
     use serde_json::json;
 
