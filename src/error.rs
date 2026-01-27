@@ -98,4 +98,3 @@ impl ParseError {
         Self::UnknownFormat { path: path.into() }
     }
 }
-

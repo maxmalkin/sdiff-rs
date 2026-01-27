@@ -180,4 +180,3 @@ fn get_git_config(key: &str) -> GitResult<String> {
 
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
-

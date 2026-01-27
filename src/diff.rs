@@ -450,4 +450,3 @@ fn nodes_equal(old: &Node, new: &Node, config: &DiffConfig) -> bool {
 fn normalize_whitespace(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
-

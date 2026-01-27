@@ -19,12 +19,8 @@ fn test_semantic_equals_primitives() {
     assert!(Node::Bool(false).semantic_equals(&Node::Bool(false)));
     assert!(!Node::Bool(true).semantic_equals(&Node::Bool(false)));
 
-    assert!(
-        Node::String("hello".to_string()).semantic_equals(&Node::String("hello".to_string()))
-    );
-    assert!(
-        !Node::String("hello".to_string()).semantic_equals(&Node::String("world".to_string()))
-    );
+    assert!(Node::String("hello".to_string()).semantic_equals(&Node::String("hello".to_string())));
+    assert!(!Node::String("hello".to_string()).semantic_equals(&Node::String("world".to_string())));
 
     assert!(!Node::Null.semantic_equals(&Node::Bool(false)));
     assert!(!Node::Bool(true).semantic_equals(&Node::Number(1.0)));

@@ -257,4 +257,3 @@ fn node_to_json_value(node: &Node) -> serde_json::Value {
         }
     }
 }
-

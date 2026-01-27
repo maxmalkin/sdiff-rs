@@ -340,4 +340,3 @@ fn run(cli: Cli) -> Result<i32> {
         Ok(1)
     }
 }
-

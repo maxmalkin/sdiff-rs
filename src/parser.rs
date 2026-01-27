@@ -195,4 +195,3 @@ fn toml_to_node(value: toml::Value) -> Node {
         }
     }
 }
-

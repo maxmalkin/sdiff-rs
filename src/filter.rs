@@ -163,4 +163,3 @@ pub fn filter_diff(diff: &Diff, config: &FilterConfig) -> Diff {
         stats,
     }
 }
-
