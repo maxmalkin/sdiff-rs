@@ -106,7 +106,9 @@ impl PathPattern {
             // Path empty but pattern remains
             (Some(_seg), None) => {
                 // Only match if remaining pattern is all double wildcards
-                pattern.iter().all(|s| matches!(s, PatternSegment::DoubleWildcard))
+                pattern
+                    .iter()
+                    .all(|s| matches!(s, PatternSegment::DoubleWildcard))
             }
             // Both have elements
             (Some(seg), Some(path_seg)) => match seg {
@@ -117,9 +119,7 @@ impl PathPattern {
                         false
                     }
                 }
-                PatternSegment::SingleWildcard => {
-                    self.matches_recursive(&pattern[1..], &path[1..])
-                }
+                PatternSegment::SingleWildcard => self.matches_recursive(&pattern[1..], &path[1..]),
                 PatternSegment::DoubleWildcard => {
                     // Try: consume no path segments, or consume one
                     self.matches_recursive(&pattern[1..], path)
@@ -288,16 +288,8 @@ mod tests {
     #[test]
     fn test_pattern_matches_single_wildcard() {
         let pattern = PathPattern::parse("foo.*.baz");
-        assert!(pattern.matches(&[
-            "foo".to_string(),
-            "bar".to_string(),
-            "baz".to_string()
-        ]));
-        assert!(pattern.matches(&[
-            "foo".to_string(),
-            "anything".to_string(),
-            "baz".to_string()
-        ]));
+        assert!(pattern.matches(&["foo".to_string(), "bar".to_string(), "baz".to_string()]));
+        assert!(pattern.matches(&["foo".to_string(), "anything".to_string(), "baz".to_string()]));
         assert!(!pattern.matches(&["foo".to_string(), "baz".to_string()]));
     }
 
@@ -319,11 +311,7 @@ mod tests {
         let pattern = PathPattern::parse("metadata.**");
         assert!(pattern.matches(&["metadata".to_string()]));
         assert!(pattern.matches(&["metadata".to_string(), "foo".to_string()]));
-        assert!(pattern.matches(&[
-            "metadata".to_string(),
-            "foo".to_string(),
-            "bar".to_string()
-        ]));
+        assert!(pattern.matches(&["metadata".to_string(), "foo".to_string(), "bar".to_string()]));
         assert!(!pattern.matches(&["other".to_string(), "metadata".to_string()]));
     }
 
@@ -341,9 +329,7 @@ mod tests {
 
     #[test]
     fn test_filter_config_only() {
-        let config = FilterConfig::new()
-            .only("spec.**")
-            .only("metadata.name");
+        let config = FilterConfig::new().only("spec.**").only("metadata.name");
 
         assert!(config.should_include(&["spec".to_string(), "replicas".to_string()]));
         assert!(config.should_include(&["metadata".to_string(), "name".to_string()]));
@@ -353,9 +339,7 @@ mod tests {
 
     #[test]
     fn test_filter_config_combined() {
-        let config = FilterConfig::new()
-            .only("spec.**")
-            .ignore("spec.internal");
+        let config = FilterConfig::new().only("spec.**").ignore("spec.internal");
 
         assert!(config.should_include(&["spec".to_string(), "replicas".to_string()]));
         assert!(!config.should_include(&["spec".to_string(), "internal".to_string()]));
