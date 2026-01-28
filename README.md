@@ -9,7 +9,7 @@ Semantic diff tool for JSON, YAML, and TOML. Compares structured data and shows 
 ## Example
 
 ```bash
-$ sdiff old.json new.json
+$ sdiff-rs old.json new.json
 • age: 30 → 31
 
 Summary: 1 modified
@@ -35,30 +35,30 @@ cargo install --path .
 
 ```bash
 # Basic usage
-sdiff old.json new.json              # Compare files
-sdiff config.json config.yaml        # Mixed formats supported
-sdiff Cargo.toml Cargo.toml.bak      # TOML support
+sdiff-rs old.json new.json              # Compare files
+sdiff-rs config.json config.yaml        # Mixed formats supported
+sdiff-rs Cargo.toml Cargo.toml.bak      # TOML support
 
 # Stdin support
-cat file.json | sdiff - other.json --input-format=json
-curl -s api/config | sdiff - local.json --input-format=json
+cat file.json | sdiff-rs - other.json --input-format=json
+curl -s api/config | sdiff-rs - local.json --input-format=json
 
 # Output formats
-sdiff old.json new.json --format=json    # JSON output for scripting
-sdiff old.json new.json --format=plain   # Plain text (no colors)
-sdiff old.json new.json --quiet          # Suppress summary
+sdiff-rs old.json new.json --format=json    # JSON output for scripting
+sdiff-rs old.json new.json --format=plain   # Plain text (no colors)
+sdiff-rs old.json new.json --quiet          # Suppress summary
 
 # Path filtering
-sdiff old.json new.json --ignore "metadata.timestamp"   # Ignore specific paths
-sdiff old.json new.json --ignore "**.version"           # Ignore version at any depth
-sdiff old.json new.json --only "spec.**"                # Show only spec changes
+sdiff-rs old.json new.json --ignore "metadata.timestamp"   # Ignore specific paths
+sdiff-rs old.json new.json --ignore "**.version"           # Ignore version at any depth
+sdiff-rs old.json new.json --only "spec.**"                # Show only spec changes
 
 # Array comparison strategies
-sdiff old.json new.json --array-strategy=positional  # Compare by index (default)
-sdiff old.json new.json --array-strategy=lcs         # Detect insertions/deletions
+sdiff-rs old.json new.json --array-strategy=positional  # Compare by index (default)
+sdiff-rs old.json new.json --array-strategy=lcs         # Detect insertions/deletions
 ```
 
-Run `sdiff --help` for all options.
+Run `sdiff-rs --help` for all options.
 
 ### Array Diff Strategies
 
@@ -68,13 +68,13 @@ Run `sdiff --help` for all options.
 
 ```bash
 # Example: [1, 2, 3] → [1, 4, 2, 3]
-$ sdiff old.json new.json --array-strategy=positional
+$ sdiff-rs old.json new.json --array-strategy=positional
 • [1]: 2 → 4
 • [2]: 3 → 2
 + [3]: 3
 Summary: 1 added, 2 modified
 
-$ sdiff old.json new.json --array-strategy=lcs
+$ sdiff-rs old.json new.json --array-strategy=lcs
 + [1]: 4
 Summary: 1 added
 ```
@@ -88,36 +88,36 @@ Filter diff output using glob-style patterns:
 - `**` - matches any number of path segments
 
 ```bash
-sdiff old.json new.json --ignore "**.timestamp"     # Ignore all timestamp fields
-sdiff old.json new.json --only "spec.**"            # Only show spec changes
-sdiff old.json new.json --only "data.*" --ignore "data.internal"
+sdiff-rs old.json new.json --ignore "**.timestamp"     # Ignore all timestamp fields
+sdiff-rs old.json new.json --only "spec.**"            # Only show spec changes
+sdiff-rs old.json new.json --only "data.*" --ignore "data.internal"
 ```
 
 ### Git Integration
 
-Use sdiff as a git difftool for structured data files:
+Use sdiff-rs as a git difftool for structured data files:
 
 ```bash
-# Install sdiff as a git difftool
-sdiff --git-install
+# Install sdiff-rs as a git difftool
+sdiff-rs --git-install
 
 # Use with git
-git difftool -t sdiff HEAD~1 -- config.json
-git difftool -t sdiff main feature -- settings.yaml
+git difftool -t sdiff-rs HEAD~1 -- config.json
+git difftool -t sdiff-rs main feature -- settings.yaml
 
 # Check configuration status
-sdiff --git-status
+sdiff-rs --git-status
 
 # Uninstall
-sdiff --git-uninstall
+sdiff-rs --git-uninstall
 ```
 
 For automatic usage with specific file types, add to `.gitattributes`:
 
 ```
-*.json diff=sdiff
-*.yaml diff=sdiff
-*.toml diff=sdiff
+*.json diff=sdiff-rs
+*.yaml diff=sdiff-rs
+*.toml diff=sdiff-rs
 ```
 
 ### Exit Codes
