@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, ValueEnum};
-use sdiff::{
+use sdiff_rs::{
     compute_diff,
     filter::filter_diff,
     filter::FilterConfig,
