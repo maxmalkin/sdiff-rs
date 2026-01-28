@@ -1,6 +1,6 @@
-use sdiff::diff::{Change, ChangeType, Diff, DiffStats};
-use sdiff::output::{format_diff, OutputFormat, OutputOptions};
-use sdiff::Node;
+use sdiff_rs::diff::{Change, ChangeType, Diff, DiffStats};
+use sdiff_rs::output::{format_diff, OutputFormat, OutputOptions};
+use sdiff_rs::Node;
 
 #[test]
 fn test_format_plain_no_changes() {

@@ -1,4 +1,4 @@
-use sdiff::{OutputError, ParseError, SdiffError};
+use sdiff_rs::{OutputError, ParseError, SdiffError};
 
 #[test]
 fn test_parse_error_display() {

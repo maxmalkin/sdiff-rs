@@ -1,4 +1,4 @@
-use sdiff::Node;
+use sdiff_rs::Node;
 use std::collections::HashMap;
 
 #[test]

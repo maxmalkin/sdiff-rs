@@ -6,9 +6,9 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-/// Helper to create a Command for the sdiff binary
+/// Helper to create a Command for the sdiff-rs binary
 fn sdiff() -> Command {
-    Command::new(assert_cmd::cargo::cargo_bin!("sdiff"))
+    Command::new(assert_cmd::cargo::cargo_bin!("sdiff-rs"))
 }
 
 #[test]

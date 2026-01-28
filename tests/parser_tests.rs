@@ -1,4 +1,4 @@
-use sdiff::{parse_file, parse_json, parse_yaml, Node};
+use sdiff_rs::{parse_file, parse_json, parse_yaml, Node};
 use std::fs;
 use std::io::Write;
 use std::path::Path;

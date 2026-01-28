@@ -20,7 +20,7 @@ Where traditional `diff` would show every line changed due to reformatting, SDIF
 ## Installation
 
 ```bash
-cargo install sdiff
+cargo install sdiff-rs
 ```
 
 Or build from source:
@@ -129,7 +129,7 @@ For automatic usage with specific file types, add to `.gitattributes`:
 ## Library
 
 ```rust
-use sdiff::{parse_file, compute_diff, format_diff, DiffConfig, OutputFormat, OutputOptions};
+use sdiff_rs::{parse_file, compute_diff, format_diff, DiffConfig, OutputFormat, OutputOptions};
 use std::path::Path;
 
 let old = parse_file(Path::new("old.json"))?;
@@ -142,7 +142,7 @@ println!("{}", output);
 ### Parsing from stdin or strings
 
 ```rust
-use sdiff::{parse_content, parse_stdin, FormatHint};
+use sdiff_rs::{parse_content, parse_stdin, FormatHint};
 
 // Parse from string with format hint
 let node = parse_content(r#"{"key": "value"}"#, FormatHint::Json, "input")?;
@@ -154,8 +154,8 @@ let node = parse_stdin(FormatHint::Auto)?;
 ### Path filtering
 
 ```rust
-use sdiff::{compute_diff, DiffConfig};
-use sdiff::filter::{filter_diff, FilterConfig};
+use sdiff_rs::{compute_diff, DiffConfig};
+use sdiff_rs::filter::{filter_diff, FilterConfig};
 
 let diff = compute_diff(&old, &new, &DiffConfig::default());
 
@@ -168,7 +168,7 @@ let filtered = filter_diff(&diff, &filter);
 ### LCS array diffing
 
 ```rust
-use sdiff::{compute_diff, DiffConfig, ArrayDiffStrategy};
+use sdiff_rs::{compute_diff, DiffConfig, ArrayDiffStrategy};
 
 let config = DiffConfig {
     array_diff_strategy: ArrayDiffStrategy::Lcs,

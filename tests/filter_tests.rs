@@ -1,6 +1,6 @@
-use sdiff::diff::{Change, ChangeType, Diff, DiffStats};
-use sdiff::filter::{filter_diff, FilterConfig, PathPattern, PatternSegment};
-use sdiff::Node;
+use sdiff_rs::diff::{Change, ChangeType, Diff, DiffStats};
+use sdiff_rs::filter::{filter_diff, FilterConfig, PathPattern, PatternSegment};
+use sdiff_rs::Node;
 
 #[test]
 fn test_pattern_parse_literal() {

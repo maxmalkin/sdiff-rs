@@ -1,4 +1,4 @@
-use sdiff::{compute_diff, ArrayDiffStrategy, ChangeType, DiffConfig, Node};
+use sdiff_rs::{compute_diff, ArrayDiffStrategy, ChangeType, DiffConfig, Node};
 use std::collections::HashMap;
 
 #[test]

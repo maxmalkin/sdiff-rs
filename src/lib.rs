@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use sdiff::{parse_file, compute_diff, DiffConfig, format_diff, OutputFormat, OutputOptions};
+//! use sdiff_rs::{parse_file, compute_diff, DiffConfig, format_diff, OutputFormat, OutputOptions};
 //! use std::path::Path;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {

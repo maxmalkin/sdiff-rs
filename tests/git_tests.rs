@@ -1,4 +1,4 @@
-use sdiff::git::{detect_git_diff_driver_args, is_null_file};
+use sdiff_rs::git::{detect_git_diff_driver_args, is_null_file};
 
 #[test]
 fn test_is_git_hash_valid() {

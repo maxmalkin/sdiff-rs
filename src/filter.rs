@@ -14,7 +14,7 @@
 //! # Examples
 //!
 //! ```
-//! use sdiff::filter::{PathPattern, FilterConfig};
+//! use sdiff_rs::filter::{PathPattern, FilterConfig};
 //!
 //! let pattern = PathPattern::parse("metadata.timestamp");
 //! assert!(pattern.matches(&["metadata".to_string(), "timestamp".to_string()]));

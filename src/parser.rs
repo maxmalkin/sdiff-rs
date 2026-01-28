@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use sdiff::parser::parse_file;
+//! use sdiff_rs::parser::parse_file;
 //! use std::path::Path;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {

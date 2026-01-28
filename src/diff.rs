@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```
-//! use sdiff::{Node, compute_diff, DiffConfig};
+//! use sdiff_rs::{Node, compute_diff, DiffConfig};
 //! use std::collections::HashMap;
 //!
 //! let mut old_map = HashMap::new();
@@ -180,7 +180,7 @@ impl Default for DiffConfig {
 /// # Examples
 ///
 /// ```
-/// use sdiff::{Node, compute_diff, DiffConfig};
+/// use sdiff_rs::{Node, compute_diff, DiffConfig};
 ///
 /// let old = Node::Number(42.0);
 /// let new = Node::Number(43.0);
