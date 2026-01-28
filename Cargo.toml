@@ -6,7 +6,7 @@ authors = ["Max Malkin <max@malkin.io>"]
 description = "Semantic diff tool for structured data (JSON, YAML, TOML), with CLI, package, and Git difftool support."
 license = "MIT"
 repository = "https://github.com/maxmalkin/sdiff"
-keywords = ["diff", "semantic", "json", "yaml", "cli", "toml", "git-difftool"]
+keywords = ["diff", "json", "yaml", "cli", "toml"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
