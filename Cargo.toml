@@ -1,6 +1,6 @@
 [package]
 name = "sdiff-rs"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2021"
 authors = ["Max Malkin <max@malkin.io>"]
 description = "Semantic diff tool for structured data (JSON, YAML, TOML), with CLI, package, and Git difftool support."
