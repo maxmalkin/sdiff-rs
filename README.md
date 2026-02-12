@@ -1,4 +1,4 @@
-# SDIFF
+# sdiff-rs
 
 [![CI](https://github.com/maxmalkin/sdiff-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/maxmalkin/sdiff-rs/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
