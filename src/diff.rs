@@ -24,6 +24,7 @@
 //! assert_eq!(diff.stats.modified, 1);
 //! ```
 
+use crate::filter::PathPattern;
 use crate::tree::Node;
 use std::collections::HashSet;
 
@@ -137,6 +138,8 @@ pub enum ArrayDiffStrategy {
     Positional,
     /// Use Longest Common Subsequence algorithm to detect insertions and deletions
     Lcs,
+    /// Treat arrays as unordered sets: two arrays with the same elements in any order are equal
+    Set,
 }
 
 /// Configuration for the diff algorithm.
@@ -148,8 +151,11 @@ pub struct DiffConfig {
     pub ignore_whitespace: bool,
     /// Treat null as equivalent to a missing key
     pub treat_null_as_missing: bool,
-    /// Array comparison strategy
+    /// Default array comparison strategy
     pub array_diff_strategy: ArrayDiffStrategy,
+    /// Glob patterns for arrays that must always use strict (positional) comparison,
+    /// regardless of `array_diff_strategy`. Uses the same syntax as path filters.
+    pub strict_arrays: Vec<String>,
 }
 
 impl Default for DiffConfig {
@@ -158,6 +164,7 @@ impl Default for DiffConfig {
             ignore_whitespace: false,
             treat_null_as_missing: false,
             array_diff_strategy: ArrayDiffStrategy::Positional,
+            strict_arrays: Vec::new(),
         }
     }
 }
@@ -287,6 +294,13 @@ fn diff_objects(
     }
 }
 
+fn is_strict_path(path: &[String], config: &DiffConfig) -> bool {
+    config
+        .strict_arrays
+        .iter()
+        .any(|p| PathPattern::parse(p).matches(path))
+}
+
 fn diff_arrays(
     old_arr: &[Node],
     new_arr: &[Node],
@@ -294,12 +308,18 @@ fn diff_arrays(
     changes: &mut Vec<Change>,
     config: &DiffConfig,
 ) {
+    if is_strict_path(&path, config) {
+        return diff_arrays_positional(old_arr, new_arr, path, changes, config);
+    }
     match config.array_diff_strategy {
         ArrayDiffStrategy::Positional => {
             diff_arrays_positional(old_arr, new_arr, path, changes, config);
         }
         ArrayDiffStrategy::Lcs => {
             diff_arrays_lcs(old_arr, new_arr, path, changes, config);
+        }
+        ArrayDiffStrategy::Set => {
+            diff_arrays_set(old_arr, new_arr, path, changes, config);
         }
     }
 }
@@ -357,7 +377,7 @@ fn compute_lcs_edits(old: &[Node], new: &[Node], config: &DiffConfig) -> Vec<Edi
 
     for i in 1..=n {
         for j in 1..=m {
-            if nodes_equal(&old[i - 1], &new[j - 1], config) {
+            if elements_equal(&old[i - 1], &new[j - 1], &[], config) {
                 dp[i][j] = dp[i - 1][j - 1] + 1;
             } else {
                 dp[i][j] = dp[i - 1][j].max(dp[i][j - 1]);
@@ -370,7 +390,7 @@ fn compute_lcs_edits(old: &[Node], new: &[Node], config: &DiffConfig) -> Vec<Edi
     let mut j = m;
 
     while i > 0 || j > 0 {
-        if i > 0 && j > 0 && nodes_equal(&old[i - 1], &new[j - 1], config) {
+        if i > 0 && j > 0 && elements_equal(&old[i - 1], &new[j - 1], &[], config) {
             edits.push(EditOp::Keep(i - 1, j - 1));
             i -= 1;
             j -= 1;
@@ -434,6 +454,134 @@ fn diff_arrays_lcs(
                 new_idx = new_i + 1;
             }
         }
+    }
+}
+
+/// Determines whether two nodes should be considered equal for the purpose of
+/// element matching in LCS and Set array strategies.
+/// `path` is relative to the element root (starts empty, grows as we descend into objects).
+fn elements_equal(old: &Node, new: &Node, path: &[String], config: &DiffConfig) -> bool {
+    if config.ignore_whitespace {
+        if let (Node::String(s1), Node::String(s2)) = (old, new) {
+            return normalize_whitespace(s1) == normalize_whitespace(s2);
+        }
+    }
+    match (old, new) {
+        (Node::Array(a), Node::Array(b)) => {
+            if a.len() != b.len() {
+                return false;
+            }
+            if !is_strict_path(path, config) && config.array_diff_strategy == ArrayDiffStrategy::Set {
+                let mut matched = vec![false; b.len()];
+                'outer: for item_a in a {
+                    for (j, item_b) in b.iter().enumerate() {
+                        if !matched[j] && elements_equal(item_a, item_b, &[], config) {
+                            matched[j] = true;
+                            continue 'outer;
+                        }
+                    }
+                    return false;
+                }
+                true
+            } else {
+                a.iter()
+                    .zip(b.iter())
+                    .all(|(ia, ib)| elements_equal(ia, ib, &[], config))
+            }
+        }
+        (Node::Object(a), Node::Object(b)) => {
+            if a.len() != b.len() {
+                return false;
+            }
+            a.iter().all(|(key, val)| {
+                b.get(key).is_some_and(|v| {
+                    let child_path: Vec<String> =
+                        path.iter().cloned().chain(std::iter::once(key.clone())).collect();
+                    elements_equal(val, v, &child_path, config)
+                })
+            })
+        }
+        _ => old.semantic_equals(new),
+    }
+}
+
+fn diff_arrays_set(
+    old_arr: &[Node],
+    new_arr: &[Node],
+    path: Vec<String>,
+    changes: &mut Vec<Change>,
+    config: &DiffConfig,
+) {
+    let mut matched_new = vec![false; new_arr.len()];
+    let mut unmatched_old: Vec<usize> = Vec::new();
+
+    for (old_idx, old_elem) in old_arr.iter().enumerate() {
+        let mut found = false;
+        for (new_idx, new_elem) in new_arr.iter().enumerate() {
+            if !matched_new[new_idx] && elements_equal(old_elem, new_elem, &[], config) {
+                matched_new[new_idx] = true;
+                let mut new_path = path.clone();
+                new_path.push(format!("[{}]", old_idx));
+                diff_nodes(old_elem, new_elem, new_path, changes, config);
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            unmatched_old.push(old_idx);
+        }
+    }
+
+    // For unmatched elements on both sides, pair each unmatched old with the unmatched new
+    // that has the fewest differences (best-match fallback). This drills down to the actual
+    // changed fields instead of reporting the whole element as removed/added.
+    let mut unmatched_new: Vec<usize> = matched_new
+        .iter()
+        .enumerate()
+        .filter(|(_, &m)| !m)
+        .map(|(i, _)| i)
+        .collect();
+
+    for old_idx in unmatched_old {
+        if unmatched_new.is_empty() {
+            let mut new_path = path.clone();
+            new_path.push(format!("[{}]", old_idx));
+            changes.push(Change {
+                path: new_path,
+                change_type: ChangeType::Removed,
+                old_value: Some(old_arr[old_idx].clone()),
+                new_value: None,
+            });
+            continue;
+        }
+
+        // Pick the new element with the fewest changes against this old element
+        let best_j = unmatched_new
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, &new_idx)| {
+                compute_diff(&old_arr[old_idx], &new_arr[new_idx], config)
+                    .stats
+                    .total_changes()
+            })
+            .map(|(j, _)| j)
+            .unwrap();
+
+        let new_idx = unmatched_new.remove(best_j);
+        let mut new_path = path.clone();
+        new_path.push(format!("[{}]", old_idx));
+        diff_nodes(&old_arr[old_idx], &new_arr[new_idx], new_path, changes, config);
+    }
+
+    for new_idx in unmatched_new {
+        let mut new_path = path.clone();
+        new_path.push(format!("[{}]", new_idx));
+        changes.push(Change {
+            path: new_path,
+            change_type: ChangeType::Added,
+            old_value: None,
+            new_value: Some(new_arr[new_idx].clone()),
+        });
     }
 }
 

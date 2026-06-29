@@ -477,3 +477,213 @@ fn test_lcs_vs_positional_comparison() {
     assert_eq!(lcs_diff.stats.added, 1);
     assert_eq!(lcs_diff.stats.removed, 0);
 }
+
+fn set_config() -> DiffConfig {
+    DiffConfig {
+        array_diff_strategy: ArrayDiffStrategy::Set,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn test_set_same_order_no_diff() {
+    let old = Node::Array(vec![
+        Node::Number(1.0),
+        Node::Number(2.0),
+        Node::Number(3.0),
+    ]);
+    let new = Node::Array(vec![
+        Node::Number(1.0),
+        Node::Number(2.0),
+        Node::Number(3.0),
+    ]);
+    let diff = compute_diff(&old, &new, &set_config());
+    assert!(diff.is_empty());
+}
+
+#[test]
+fn test_set_reordered_no_diff() {
+    let old = Node::Array(vec![
+        Node::Number(1.0),
+        Node::Number(2.0),
+        Node::Number(3.0),
+    ]);
+    let new = Node::Array(vec![
+        Node::Number(3.0),
+        Node::Number(1.0),
+        Node::Number(2.0),
+    ]);
+    let diff = compute_diff(&old, &new, &set_config());
+    assert!(diff.is_empty());
+}
+
+#[test]
+fn test_set_added_element() {
+    let old = Node::Array(vec![Node::Number(1.0), Node::Number(2.0)]);
+    let new = Node::Array(vec![
+        Node::Number(1.0),
+        Node::Number(2.0),
+        Node::Number(3.0),
+    ]);
+    let diff = compute_diff(&old, &new, &set_config());
+    assert_eq!(diff.stats.added, 1);
+    assert_eq!(diff.stats.removed, 0);
+    assert_eq!(diff.stats.modified, 0);
+}
+
+#[test]
+fn test_set_removed_element() {
+    let old = Node::Array(vec![
+        Node::Number(1.0),
+        Node::Number(2.0),
+        Node::Number(3.0),
+    ]);
+    let new = Node::Array(vec![Node::Number(1.0), Node::Number(3.0)]);
+    let diff = compute_diff(&old, &new, &set_config());
+    assert_eq!(diff.stats.added, 0);
+    assert_eq!(diff.stats.removed, 1);
+    assert_eq!(diff.stats.modified, 0);
+    assert_eq!(diff.changes[0].change_type, ChangeType::Removed);
+}
+
+#[test]
+fn test_set_objects_reordered_no_diff() {
+    let mut obj_a = HashMap::new();
+    obj_a.insert("id".to_string(), Node::Number(1.0));
+    obj_a.insert("name".to_string(), Node::String("alice".to_string()));
+
+    let mut obj_b = HashMap::new();
+    obj_b.insert("id".to_string(), Node::Number(2.0));
+    obj_b.insert("name".to_string(), Node::String("bob".to_string()));
+
+    let old = Node::Array(vec![Node::Object(obj_a.clone()), Node::Object(obj_b.clone())]);
+    let new = Node::Array(vec![Node::Object(obj_b), Node::Object(obj_a)]);
+
+    let diff = compute_diff(&old, &new, &set_config());
+    assert!(diff.is_empty());
+}
+
+#[test]
+fn test_set_objects_one_modified() {
+    let mut obj_a = HashMap::new();
+    obj_a.insert("id".to_string(), Node::Number(1.0));
+
+    let mut obj_b = HashMap::new();
+    obj_b.insert("id".to_string(), Node::Number(2.0));
+
+    let mut obj_c = HashMap::new();
+    obj_c.insert("id".to_string(), Node::Number(3.0));
+
+    let old = Node::Array(vec![Node::Object(obj_a.clone()), Node::Object(obj_b)]);
+    let new = Node::Array(vec![Node::Object(obj_c), Node::Object(obj_a)]);
+
+    // obj_b ({id:2}) and obj_c ({id:3}) are best-matched and diffed recursively
+    let diff = compute_diff(&old, &new, &set_config());
+    assert_eq!(diff.stats.added, 0);
+    assert_eq!(diff.stats.removed, 0);
+    assert_eq!(diff.stats.modified, 1);
+}
+
+#[test]
+fn test_set_empty_arrays() {
+    let old = Node::Array(vec![]);
+    let new = Node::Array(vec![]);
+    let diff = compute_diff(&old, &new, &set_config());
+    assert!(diff.is_empty());
+}
+
+#[test]
+fn test_set_duplicates_handled() {
+    // Old has two 1s, new has only one — one should be reported removed
+    let old = Node::Array(vec![Node::Number(1.0), Node::Number(1.0)]);
+    let new = Node::Array(vec![Node::Number(1.0)]);
+    let diff = compute_diff(&old, &new, &set_config());
+    assert_eq!(diff.stats.removed, 1);
+    assert_eq!(diff.stats.added, 0);
+}
+
+// ── strict-arrays override ────────────────────────────────────────────────────
+
+fn strict_config(global: ArrayDiffStrategy, patterns: &[&str]) -> DiffConfig {
+    DiffConfig {
+        array_diff_strategy: global,
+        strict_arrays: patterns.iter().map(|p| p.to_string()).collect(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn test_strict_override_suppresses_set() {
+    // Global: set. Strict: **.location.
+    // Objects with reordered location arrays should flag a diff.
+    let make = |lat: f64, lon: f64| {
+        let mut m = HashMap::new();
+        m.insert(
+            "location".to_string(),
+            Node::Array(vec![Node::Number(lat), Node::Number(lon)]),
+        );
+        Node::Object(m)
+    };
+
+    let old = Node::Array(vec![make(48.0, 2.0)]);
+    let new = Node::Array(vec![make(2.0, 48.0)]); // lat/lon swapped
+
+    // Without strict: set treats [48,2] and [2,48] as equal → no diff
+    assert!(compute_diff(&old, &new, &set_config()).is_empty());
+
+    // With strict on location: order matters → diff detected
+    let diff = compute_diff(&old, &new, &strict_config(ArrayDiffStrategy::Set, &["**.location"]));
+    assert!(!diff.is_empty());
+}
+
+#[test]
+fn test_strict_override_with_lcs_global() {
+    // Global: lcs. Strict: **.location.
+    // Objects with reordered location arrays should flag a diff.
+    let make = |lat: f64, lon: f64| {
+        let mut m = HashMap::new();
+        m.insert(
+            "location".to_string(),
+            Node::Array(vec![Node::Number(lat), Node::Number(lon)]),
+        );
+        Node::Object(m)
+    };
+
+    let old = Node::Array(vec![make(48.0, 2.0)]);
+    let new = Node::Array(vec![make(2.0, 48.0)]);
+
+    // Without strict: lcs already treats arrays positionally → diff
+    let lcs = DiffConfig { array_diff_strategy: ArrayDiffStrategy::Lcs, ..Default::default() };
+    assert!(!compute_diff(&old, &new, &lcs).is_empty());
+
+    // With strict: same result, still a diff
+    let diff = compute_diff(&old, &new, &strict_config(ArrayDiffStrategy::Lcs, &["**.location"]));
+    assert!(!diff.is_empty());
+}
+
+#[test]
+fn test_strict_override_multiple_patterns() {
+    // Two patterns in strict_arrays; both independently force positional.
+    let make = |a: f64, b: f64, key: &str| {
+        let mut m = HashMap::new();
+        m.insert(
+            key.to_string(),
+            Node::Array(vec![Node::Number(a), Node::Number(b)]),
+        );
+        Node::Object(m)
+    };
+
+    let old = Node::Array(vec![make(1.0, 2.0, "coords")]);
+    let new = Node::Array(vec![make(2.0, 1.0, "coords")]); // swapped
+
+    // Without strict: set → no diff
+    assert!(compute_diff(&old, &new, &set_config()).is_empty());
+
+    // With strict on "**.coords" (one of the two patterns): diff detected
+    let diff = compute_diff(
+        &old,
+        &new,
+        &strict_config(ArrayDiffStrategy::Set, &["**.location", "**.coords"]),
+    );
+    assert!(!diff.is_empty());
+}
