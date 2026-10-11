@@ -88,7 +88,12 @@ impl Node {
         };
 
         if preview.len() > max_len {
-            format!("{}...", &preview[..max_len.saturating_sub(3)])
+            let truncate_at = max_len.saturating_sub(3);
+            let boundary = (0..=truncate_at)
+                .rev()
+                .find(|&i| preview.is_char_boundary(i))
+                .unwrap_or(0);
+            format!("{}...", &preview[..boundary])
         } else {
             preview
         }
