@@ -556,7 +556,10 @@ fn test_set_objects_reordered_no_diff() {
     obj_b.insert("id".to_string(), Node::Number(2.0));
     obj_b.insert("name".to_string(), Node::String("bob".to_string()));
 
-    let old = Node::Array(vec![Node::Object(obj_a.clone()), Node::Object(obj_b.clone())]);
+    let old = Node::Array(vec![
+        Node::Object(obj_a.clone()),
+        Node::Object(obj_b.clone()),
+    ]);
     let new = Node::Array(vec![Node::Object(obj_b), Node::Object(obj_a)]);
 
     let diff = compute_diff(&old, &new, &set_config());
@@ -632,7 +635,11 @@ fn test_strict_override_suppresses_set() {
     assert!(compute_diff(&old, &new, &set_config()).is_empty());
 
     // With strict on location: order matters → diff detected
-    let diff = compute_diff(&old, &new, &strict_config(ArrayDiffStrategy::Set, &["**.location"]));
+    let diff = compute_diff(
+        &old,
+        &new,
+        &strict_config(ArrayDiffStrategy::Set, &["**.location"]),
+    );
     assert!(!diff.is_empty());
 }
 
@@ -653,11 +660,18 @@ fn test_strict_override_with_lcs_global() {
     let new = Node::Array(vec![make(2.0, 48.0)]);
 
     // Without strict: lcs already treats arrays positionally → diff
-    let lcs = DiffConfig { array_diff_strategy: ArrayDiffStrategy::Lcs, ..Default::default() };
+    let lcs = DiffConfig {
+        array_diff_strategy: ArrayDiffStrategy::Lcs,
+        ..Default::default()
+    };
     assert!(!compute_diff(&old, &new, &lcs).is_empty());
 
     // With strict: same result, still a diff
-    let diff = compute_diff(&old, &new, &strict_config(ArrayDiffStrategy::Lcs, &["**.location"]));
+    let diff = compute_diff(
+        &old,
+        &new,
+        &strict_config(ArrayDiffStrategy::Lcs, &["**.location"]),
+    );
     assert!(!diff.is_empty());
 }
 

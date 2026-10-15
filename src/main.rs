@@ -170,7 +170,6 @@ impl From<ArrayStrategyArg> for ArrayDiffStrategy {
     }
 }
 
-
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     if let Some((old_file, new_file)) = detect_git_diff_driver_args(&args) {

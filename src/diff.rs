@@ -471,7 +471,8 @@ fn elements_equal(old: &Node, new: &Node, path: &[String], config: &DiffConfig) 
             if a.len() != b.len() {
                 return false;
             }
-            if !is_strict_path(path, config) && config.array_diff_strategy == ArrayDiffStrategy::Set {
+            if !is_strict_path(path, config) && config.array_diff_strategy == ArrayDiffStrategy::Set
+            {
                 let mut matched = vec![false; b.len()];
                 'outer: for item_a in a {
                     for (j, item_b) in b.iter().enumerate() {
@@ -495,8 +496,11 @@ fn elements_equal(old: &Node, new: &Node, path: &[String], config: &DiffConfig) 
             }
             a.iter().all(|(key, val)| {
                 b.get(key).is_some_and(|v| {
-                    let child_path: Vec<String> =
-                        path.iter().cloned().chain(std::iter::once(key.clone())).collect();
+                    let child_path: Vec<String> = path
+                        .iter()
+                        .cloned()
+                        .chain(std::iter::once(key.clone()))
+                        .collect();
                     elements_equal(val, v, &child_path, config)
                 })
             })
@@ -570,7 +574,13 @@ fn diff_arrays_set(
         let new_idx = unmatched_new.remove(best_j);
         let mut new_path = path.clone();
         new_path.push(format!("[{}]", old_idx));
-        diff_nodes(&old_arr[old_idx], &new_arr[new_idx], new_path, changes, config);
+        diff_nodes(
+            &old_arr[old_idx],
+            &new_arr[new_idx],
+            new_path,
+            changes,
+            config,
+        );
     }
 
     for new_idx in unmatched_new {
